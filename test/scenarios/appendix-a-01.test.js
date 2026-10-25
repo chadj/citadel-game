@@ -9,6 +9,8 @@ import assert from 'node:assert/strict';
 import { makeWind, BATTERY } from '../../src/rules/flight.js';
 import { WIND_STRONG, POWER_MAX } from '../../src/rules/constants.js';
 import { fly } from '../helpers/flight-cases.js';
+import { AIM_FINE, markHeading, moveHeading } from '../../src/client/core/aim.js';
+import { meterPower, meterShown } from '../../src/client/core/meter.js';
 
 const near = (got, target, within) =>
   assert.ok(Math.abs(got - target) <= within, `got ${got.toFixed(1)}, target about ${target}`);
@@ -45,4 +47,15 @@ test('a Strong wind across it: about 500 px along and 150 px to the side', () =>
   near(shot.across, 150, 20);
 });
 
-test.todo('two shots with the same displayed aim and meter can land in different places (the meter and aim display come with the client, M6)');
+test('two shots with the same displayed aim and meter can land in different places', () => {
+  // Two aims the targeting marks show alike, and two releases the meter
+  // shows alike.
+  const aims = [Math.round(10.6 * AIM_FINE), Math.round(12.4 * AIM_FINE)];
+  const powers = [meterPower(510), meterPower(545)];
+  assert.equal(markHeading(aims[0]), markHeading(aims[1]));
+  assert.equal(meterShown(powers[0]), meterShown(powers[1]));
+  const a = fly({ heading: moveHeading(aims[0]), power: powers[0] });
+  const b = fly({ heading: moveHeading(aims[1]), power: powers[1] });
+  const apart = Math.hypot(a.landing.x - b.landing.x, a.landing.y - b.landing.y) / 1024;
+  assert.ok(apart > 10, `they land ${apart.toFixed(1)} px apart`);
+});

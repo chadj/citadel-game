@@ -125,3 +125,24 @@ entries in `decisions.md` it relies on.
 - **Spec:** 08 (all but how it's drawn); 12 The game state; Appendix A
   08.
 - **Decisions:** D10, D11, D17, D37.
+
+## The browser client (hot seat, computers' seats, replays)
+- **Files:** `index.html`, `tools/serve.js`, `src/client/**`
+  - plain, tested in Node: `core/aim.js`, `core/meter.js`,
+    `core/camera.js`, `core/view.js`, `core/session.js`,
+    `core/controls.js`, `core/chat.js`, `core/stats.js`,
+    `core/prefs.js`, `core/keys.js`, `core/newgame.js`, `core/maps.js`,
+    `core/replay-store.js`, `render/terrain-art.js`,
+    `render/fog-art.js`
+  - Phaser: `main.js`, `scenes/*`, `ui/*`, `render/world.js`,
+    `render/effects.js`
+  - rules events gained fields for the screen and summary (`by`,
+    `owner`, `gains`, `amount`, `unitOwner`, `spread`); the state is
+    unchanged.
+- **Spec:** 10 (all but sounds and online-only parts); 01 Aiming,
+  Power, What players see; 02 What players see, Start positions; 03
+  The shot clock, What players see; 04 How units show their state; 05,
+  06, 07 What players see; 08 What players see; 12 Ways to play (hot
+  seat, against the computer), Setting up a game, When the game
+  starts, Replays; Appendix A 01 (the displayed aim and meter).
+- **Decisions:** D16, D22, D28, D38, D39, D40, D41.

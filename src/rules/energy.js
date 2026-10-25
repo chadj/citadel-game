@@ -31,13 +31,18 @@ export function gainEnergy(state, player, amount) {
 }
 
 // Pays income to every player at the end of a round, and clears what
-// was put aside or salvaged.
+// was put aside or salvaged. Returns what each player gained, after the
+// cap, less what they had put aside: their own energy coming back
+// isn't earned.
 export function payIncome(state) {
-  state.players.forEach((p, i) => {
+  return state.players.map((p, i) => {
     const income = roundIncome(state, i);
+    const before = p.energy;
     p.energy = Math.min(ENERGY_CAP, p.energy + income);
+    const gained = Math.max(0, p.energy - before - p.aside);
     p.aside = 0;
     p.salvaged = 0;
+    return gained;
   });
 }
 

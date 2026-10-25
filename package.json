@@ -9,6 +9,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test \"test/**/*.test.js\""
+    "test": "node --test \"test/**/*.test.js\"",
+    "start": "node tools/serve.js"
+  },
+  "dependencies": {
+    "phaser": "4.2.1"
   }
 }

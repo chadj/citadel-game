@@ -81,7 +81,7 @@ export function weaponEnd(ctx, shot, how, p, struck) {
       const until = cycleEnd(s);
       for (const u of s.units) {
         if (gap3(game.map.size, at.x, at.y, at.z, u) > WORM_REACH) continue;
-        if (infect(u, worm, until, null)) ctx.emit({ type: 'infected', unit: u.id, owner: shot.owner });
+        if (infect(u, worm, until, null)) ctx.emit({ type: 'infected', unit: u.id, owner: shot.owner, unitOwner: u.owner });
       }
       return undefined;
     }

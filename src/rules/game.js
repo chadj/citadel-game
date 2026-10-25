@@ -16,7 +16,7 @@
 import {
   POWER_MAX, START_ENERGY, MIN_TO_PLAY, TIMEOUT_COST, CLOCK_GRACE, CLOCK_SHRINK, CLOCK_MIN,
   NO_LAUNCHER_LIMIT, PX, PONTOON_FALL_DELAY, EXTRACTOR_BLAST, CHARGE_BLAST, ROVER_BLAST, CHARGE_TRIGGER,
-  ROVER_UNDERWATER,
+  ROVER_UNDERWATER, CITADEL_BONUS,
 } from './constants.js';
 import { divRound } from './math/fixed.js';
 import { loadMap } from './terrain/map.js';
@@ -377,8 +377,8 @@ function finishRound(game) {
   const s = game.state;
   s.phase = 'turn';
   s.drive = null;
-  payIncome(s);
-  emit(game, { type: 'income' });
+  const gains = payIncome(s);
+  emit(game, { type: 'income', gains });
   s.players.forEach((p) => {
     p.passed = false;
     p.inRound = true;
@@ -469,7 +469,9 @@ export function destroyUnit(game, unit, credited, how = 'destroyed') {
   const failed = how !== 'destroyed' || unit.landing;
   const working = isWorking(s, unit);
   s.units.splice(s.units.indexOf(unit), 1);
-  emit(game, { type: 'destroy', unit: unit.id, kind: unit.kind, how: failed && how === 'destroyed' ? 'failed' : how });
+  emit(game, {
+    type: 'destroy', unit: unit.id, kind: unit.kind, owner: unit.owner, how: failed && how === 'destroyed' ? 'failed' : how, by: credited,
+  });
   if (!failed && working) {
     if (unit.kind === 'extractor') scheduleBlast(s, unit, EXTRACTOR_BLAST, credited);
     if (unit.kind === 'charge' && !unit.triggered) scheduleBlast(s, unit, CHARGE_BLAST, credited);
@@ -484,9 +486,9 @@ export function destroyUnit(game, unit, credited, how = 'destroyed') {
     const p = s.players[unit.owner];
     p.knockedOut = true;
     p.mark = 'out';
-    emit(game, { type: 'knockedOut', player: unit.owner });
+    emit(game, { type: 'knockedOut', player: unit.owner, by: credited });
     if (payCitadelBonus(s, game.sides, credited, unit.owner)) {
-      emit(game, { type: 'citadelBonus', player: credited });
+      emit(game, { type: 'citadelBonus', player: credited, amount: CITADEL_BONUS });
     }
   }
 }

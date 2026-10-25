@@ -1,0 +1,21 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Copyright (C) 2026 Chad Johnson -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Lunar Citadel</title>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #0b0f14; overflow: hidden; }
+    #game { width: 100vw; height: 100vh; touch-action: none; }
+  </style>
+  <script type="importmap">
+    { "imports": { "phaser": "./node_modules/phaser/dist/phaser.esm.js" } }
+  </script>
+</head>
+<body>
+  <div id="game"></div>
+  <script type="module" src="./src/client/main.js"></script>
+</body>
+</html>

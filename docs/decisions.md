@@ -616,3 +616,90 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     character per cell (D27).
   - **The fog lifts** for a side with no human player who still has a
     Citadel, unless that side has won.
+
+## D38. Aiming, the meter and the keys on screen — Ours
+- **Date:** 2026-10-25
+- **Spec:** 01 Shots are hard to repeat exactly, Aiming, Power; 10 The
+  launching view, Keys; decision D22
+- **Decision:**
+  - **The aim** turns in eighths of a degree. A press turns it 1⅛°.
+    Held, it waits 0.25 s, then turns at 15°/s, rising evenly to 150°/s
+    over 0.9 s. A shot follows it to the nearest whole degree.
+  - **The targeting marks** show the heading to the nearest 3°, so two
+    aims that look the same can fly a degree or two apart.
+  - **The meter** fills in 1.25 s and empties in 1.25 s; the power is
+    the share full × 1000, from how long Launch was held. The quickest
+    tap counts as 40 ms held (power 32). It shows in 20 steps: a power
+    of p lights ⌈p / 50⌉ of them.
+  - **Launch** stops the clock when pressed. If the launch is then
+    refused, the clock runs again. Launch isn't pressed at all if the
+    building's conduit marker shows and isn't overridden.
+  - **Override:** the override key, held with Launch. Touch screens
+    have no keys, so the launching view also has an Override button
+    while the marker shows.
+  - **Default keys:** B damage bars, R range circles, C center, E next,
+    Q previous, O closest Outpost, A last attacked, T chat, Z and X turn
+    the aim, L launch, V override. Every letter can be changed; a
+    letter does one thing only.
+
+## D39. Who sees the launch (Choice) — Ours
+- **Date:** 2026-10-25
+- **Spec:** 01 What players see (Choice: who sees the launch)
+- **Decision:** The charging and the burst show on the launching
+  player's screen only. Opponents aren't told that a shot is coming.
+  In a hot-seat game everyone shares the screen anyway.
+
+## D40. Screen details — Ours
+- **Date:** 2026-10-25
+- **Spec:** 10; 03 What players see; 08 What players see; 12 Watching a
+  replay; 02 What players see
+- **Decision:**
+  - **Camera:** a glide takes 0.7 s, easing in and out. Tracking closes
+    the gap smoothly (63% every 90 ms). Steady Camera starts following
+    once the shot is 80% of the way from the center to the view's edge.
+    A drag starts after the pointer moves 8 px. Arrow keys and Edge
+    Scrolling (the outer 10 px) scroll at 700 px/s. A click within
+    22 px of one of the player's launchers selects it.
+  - **Watch Cam** ends where it last saw the shot.
+  - **The end of a round** is announced, and Rovers start driving
+    1.2 s later. A computer's turn shows for at least 1 s.
+  - **The game menu pauses** a local game only when every other player
+    is a computer, as spec 10 says; a hot-seat game with two humans
+    doesn't pause.
+  - **Hot seat:** the view changes hands at once, with no hand-over
+    screen. Chat shows the messages the player whose view it is gets.
+  - **Chat:** `/team …` or `/t …` to the team, `@name …` to the one
+    player whose name starts with `name`. 120 characters at most. The
+    sender sees `[to team]` or `[to Name]`; a private message shows
+    `[just for you]`; a team message `[team]`.
+  - **Unit limit:** none.
+  - **Rovers** show their facing to the nearest 20°.
+  - **Craters:** at most 120; the oldest 30 fade.
+  - **Replays** play a move 0.7 s after the last one settled. The
+    followed player's fog shows at about 40% darkness.
+  - **The summary:** a hit is an attacking shot that damages, disables
+    or infects an opponent's unit; a Rover counts when it explodes at
+    the end of a round. Energy earned is income and Citadel bonuses,
+    less energy put aside coming back.
+  - **Factions** are named Meridian, Basalt Union, Lumen Order and
+    Drift Clans, and differ in the outline of their units. The six
+    colors are red, blue, green, yellow, violet and orange.
+
+## D41. Maps until the full set — Ours
+- **Date:** 2026-10-25
+- **Spec:** 02 Start positions, Maps that come with the game; D16
+- **Decision:** Until the maps that come with the game are made (with
+  the generator), the client offers two: Quiet Basin (32 tiles,
+  tundra) and Shallow Crossing (40 tiles, desert), each with four
+  corner starts grouped for every player count and team layout as D16
+  describes.
+
+## D42. The chat key while typing
+- **Date:** 2026-10-25
+- **Spec:** 10 Chat, Keys
+- **Question:** The chat key is a letter, yet "the chat key or Enter
+  sends the line". Pressing it while typing would then send the line,
+  so that letter could never be typed. How does it work?
+- **Answer (user):** The chat key opens the line. While typing, only
+  Enter sends, and the chat key types its letter. Esc drops the line.
+  Proposed wording is in `docs/spec-changes.md`.

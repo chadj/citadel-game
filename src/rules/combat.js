@@ -63,7 +63,7 @@ export function hurt(ctx, unit, amount, credit) {
   const s = ctx.game.state;
   if (amount <= 0 || !s.units.includes(unit)) return;
   unit.armor -= amount;
-  ctx.emit({ type: 'damage', unit: unit.id, amount, armor: Math.max(0, unit.armor) });
+  ctx.emit({ type: 'damage', unit: unit.id, owner: unit.owner, amount, armor: Math.max(0, unit.armor), by: credit });
   if (unit.armor <= 0) ctx.destroy(unit, credit, 'destroyed');
 }
 
@@ -158,7 +158,7 @@ const RUN = {
     if (unit) {
       const s = ctx.game.state;
       s.units.splice(s.units.indexOf(unit), 1);
-      ctx.emit({ type: 'destroy', unit: unit.id, kind: unit.kind });
+      ctx.emit({ type: 'destroy', unit: unit.id, kind: unit.kind, owner: unit.owner, how: 'destroyed', by: e.credit });
     }
     blast(ctx, e);
     return false;
@@ -179,7 +179,7 @@ const RUN = {
       } else {
         disable(u, cycleEnd(s));
       }
-      ctx.emit({ type: 'disabled', unit: u.id });
+      ctx.emit({ type: 'disabled', unit: u.id, owner: u.owner, by: e.credit });
     }
     shotExplosion(ctx, { x: e.x, y: e.y, z: e.z, radius: PULSE_RADIUS, damage: PULSE_DAMAGE, credit: e.credit });
     return false;

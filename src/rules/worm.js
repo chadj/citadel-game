@@ -47,7 +47,7 @@ export function wormsWearOff(game, steps, emit) {
   for (const [id, worm, conduit] of spreads) {
     const unit = findUnit(s, id);
     if (unit && infect(unit, worm, steps + s.seats.length, conduit)) {
-      emit({ type: 'infected', unit: unit.id, owner: worm.owner });
+      emit({ type: 'infected', unit: unit.id, owner: worm.owner, spread: true });
     }
   }
 }
