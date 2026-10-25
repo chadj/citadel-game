@@ -20,7 +20,7 @@ import {
   PX, FOG_CELL, PULSE_REACH, PULSE_DELAY, INTERCEPTOR_RANGE, CHARGE_TRIGGER, DOME_RADIUS,
   FULL_FOOTPRINT_DELAY, TILE,
 } from '../../rules/constants.js';
-import { UNIT_KINDS, isWorking } from '../../rules/units.js';
+import { UNIT_KINDS, isWorking, findUnit } from '../../rules/units.js';
 import { ITEMS, BUILDING } from '../../rules/items.js';
 import { canSee } from '../../rules/fog.js';
 import { isGone, conduitWarning } from '../../rules/conduits.js';
@@ -38,6 +38,16 @@ const DEPTH = { terrain: 0, ground: 1, low: 2, units: 3, air: 4, fog: 5, fx: 6, 
 // The number of sides of each faction's footprint shape: they differ
 // only in looks (spec 00, Players and setup).
 const FACTION_SIDES = [0, 6, 4, 8];
+
+// Conduit lights (spec 05, Conduit lights; decision D54): lights run
+// along every conduit toward its launcher, so toward the Citadel, one
+// node every LIGHT_STEP_MS, LIGHT_GAP nodes apart, each with a tail.
+// All conduits share the screen's clock, so they pulse in step. Into a
+// disabled unit they run LIGHT_SLOW times slower.
+const LIGHT_STEP_MS = 140; // about 107 px a second
+const LIGHT_GAP = 8; // a light every 8 nodes, about 120 px
+const LIGHT_TAIL = 3; // nodes
+const LIGHT_SLOW = 5;
 
 const deg = (d) => (d * Math.PI) / 180;
 
@@ -217,19 +227,30 @@ export class WorldView {
     const air = this.gfx.air;
     for (const c of s.conduits) {
       const color = this.color(c.owner);
-      for (const n of c.nodes) {
-        if (isGone(s, n)) continue;
-        if (!this.mine(c.owner) && !this.sees(n.x, n.y, n.z)) continue;
+      const into = c.to === null ? null : findUnit(s, c.to);
+      const slow = into && !isWorking(s, into);
+      const pos = this.time / (LIGHT_STEP_MS * (slow ? LIGHT_SLOW : 1));
+      c.nodes.forEach((n, k) => {
+        if (isGone(s, n)) return;
+        if (!this.mine(c.owner) && !this.sees(n.x, n.y, n.z)) return;
         const [mx, my] = [n.x / PX, (n.y - Math.max(0, n.z) * LIFT) / PX];
         const burning = n.burnAt !== null;
         if (n.resting) {
-          for (const [sx, sy] of copies(mx, my, 6)) {
+          // Nodes are counted from the launcher, so a light moving to
+          // lower counts flows toward it; its tail trails behind.
+          const d = (((k + pos) % LIGHT_GAP) + LIGHT_GAP) % LIGHT_GAP;
+          const glow = burning || d >= LIGHT_TAIL ? 0 : 1 - d / LIGHT_TAIL;
+          for (const [sx, sy] of copies(mx, my, 8)) {
             low.fillStyle(0x000000, 0.35);
             low.fillCircle(sx + 1, sy + 1, 3);
+            if (glow > 0) {
+              low.fillStyle(shade(color, 1.4), 0.35 * glow);
+              low.fillCircle(sx, sy, 5 * glow + 2.6);
+            }
             low.fillStyle(burning ? 0xff8040 : color, 1);
             low.fillCircle(sx, sy, 2.6);
-            low.fillStyle(0xffffff, 0.35);
-            low.fillCircle(sx - 0.8, sy - 0.8, 1);
+            low.fillStyle(0xffffff, 0.35 + 0.55 * glow);
+            low.fillCircle(sx - 0.8 * (1 - glow), sy - 0.8 * (1 - glow), 1 + 1.4 * glow);
           }
         } else {
           // A falling node, and its shadow on the ground below.
@@ -244,7 +265,7 @@ export class WorldView {
             air.fillCircle(sx, sy, 2.6);
           }
         }
-      }
+      });
     }
   }
 

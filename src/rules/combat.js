@@ -186,13 +186,13 @@ const RUN = {
   },
 
   // The Surge's damage, one node further along its conduit. It stops if
-  // the node has burned away, and fades to nothing as it goes.
+  // the node has burned away, and fades to nothing as it goes. Past the
+  // last node it hits the unit at that end, even if the conduit behind
+  // it has burned away since.
   surge(ctx, e) {
     const s = ctx.game.state;
-    const conduit = s.conduits.find((c) => c.id === e.conduit);
-    if (!conduit) return false;
-    if (e.index < 0 || e.index >= conduit.nodes.length) {
-      const end = findUnit(s, e.index < 0 ? conduit.from : conduit.to);
+    if (e.index < 0 || e.index >= e.length) {
+      const end = findUnit(s, e.index < 0 ? e.from : e.to);
       const left = surgeLeft(e.traveled);
       if (end) {
         ctx.emit({ type: 'surgeEnd', unit: end.id, amount: left });
@@ -200,7 +200,8 @@ const RUN = {
       }
       return false;
     }
-    if (isGone(s, conduit.nodes[e.index])) return false;
+    const conduit = s.conduits.find((c) => c.id === e.conduit);
+    if (!conduit || isGone(s, conduit.nodes[e.index])) return false;
     e.traveled += 1;
     ctx.emit({ type: 'surgeNode', conduit: conduit.id, index: e.index, strength: surgeLeft(e.traveled), owner: e.owner });
     if (surgeLeft(e.traveled) <= 0) return false;
@@ -235,9 +236,26 @@ export function surgeLeft(traveled) {
   return Math.max(0, Math.floor((SURGE_DAMAGE * (SURGE_FADE_NODES - traveled)) / SURGE_FADE_NODES));
 }
 
-// Starts the Surge's damage running along a conduit from node `index`.
+// Starts the Surge's damage running along a conduit from node `index`,
+// reaching that node after one step.
 export function startSurge(state, conduit, index, dir, owner, credit, traveled = 0) {
-  schedule(state, {
+  schedule(state, surgeEffect(state, conduit, index, dir, owner, credit, traveled));
+}
+
+// Starts the Surge's damage back along the conduit into the unit it
+// struck, passing the first node at once: before the unit takes its own
+// damage, so if that destroys it, the damage is already ahead of the
+// burn, and keeps ahead of it to the far end (it moves faster).
+export function surgeFromUnit(ctx, conduit, owner, credit) {
+  const s = ctx.game.state;
+  const e = surgeEffect(s, conduit, conduit.nodes.length - 1, -1, owner, credit, 0);
+  e.at = s.tick;
+  if (RUN.surge(ctx, e)) schedule(s, e);
+}
+
+function surgeEffect(state, conduit, index, dir, owner, credit, traveled) {
+  return {
     type: 'surge', at: state.tick + SURGE_TICKS_PER_NODE, conduit: conduit.id, index, dir, traveled, owner, credit,
-  });
+    from: conduit.from, to: conduit.to, length: conduit.nodes.length,
+  };
 }

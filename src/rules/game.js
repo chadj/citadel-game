@@ -242,7 +242,7 @@ export function step(game) {
   runPending(ctx);
   for (const [unitId, credit, fails] of doomed) {
     const unit = findUnit(s, unitId);
-    if (unit) destroyUnit(game, unit, credit, fails ? 'failed' : 'destroyed');
+    if (unit) destroyUnit(game, unit, credit, fails ? 'failed' : 'destroyed', { burnt: true });
   }
 
   dropLingers(s);
@@ -464,13 +464,16 @@ function checkGameOver(game) {
 // - Destroying a Citadel puts its owner out of the game, and may pay
 //   the Citadel bonus (spec 03).
 // - A destroyed Pontoon's tile is water again (spec 02, Pontoons).
-export function destroyUnit(game, unit, credited, how = 'destroyed') {
+// `burnt` marks a unit destroyed by the burn reaching it along its
+// conduit, not by a hit, for the screen (spec 11, the aide).
+export function destroyUnit(game, unit, credited, how = 'destroyed', { burnt = false } = {}) {
   const s = game.state;
   const failed = how !== 'destroyed' || unit.landing;
   const working = isWorking(s, unit);
   s.units.splice(s.units.indexOf(unit), 1);
   emit(game, {
     type: 'destroy', unit: unit.id, kind: unit.kind, owner: unit.owner, how: failed && how === 'destroyed' ? 'failed' : how, by: credited,
+    ...(burnt && { burnt: true }),
   });
   if (!failed && working) {
     if (unit.kind === 'extractor') scheduleBlast(s, unit, EXTRACTOR_BLAST, credited);

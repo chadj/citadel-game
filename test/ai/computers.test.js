@@ -13,6 +13,8 @@ import { citadelOf } from '../../src/rules/units.js';
 import { hashState } from '../../src/rules/hash.js';
 import { MIN_TO_PLAY, PX } from '../../src/rules/constants.js';
 import { listJsFiles } from '../../tools/walk.js';
+import { cornersFromTiles, sketchMapData } from '../../src/rules/terrain/map.js';
+import { envFor, solve } from '../../src/ai/aim.js';
 import { Brain, seeded } from '../../src/ai/brain.js';
 import { PERSONALITIES, STYLE_WEIGHTS } from '../../src/ai/personalities.js';
 import { PERSONALITIES as OFFERED, mapStarts, brainsFor } from '../../src/client/core/computers.js';
@@ -167,8 +169,8 @@ test('computer players are plain JavaScript, with no Phaser or browser', () => {
 });
 
 test('fenced in by water, it lays Pontoons and builds across', () => {
-  // An island, ringed by water two tiles wide; the vents and the enemy
-  // are beyond it.
+  // An island, ringed by water about a tile wide, across two tiles; the
+  // vents and the enemy are beyond it.
   const rows = [];
   for (let y = 0; y < 48; y++) {
     let row = '';
@@ -176,11 +178,11 @@ test('fenced in by water, it lays Pontoons and builds across', () => {
     rows.push(row);
   }
   const setup = makeSetup({ players: [{}, { computer: true }], fog: false });
-  setup.map = { name: 'Fenced', players: 2, planet: 'tundra', rows, vents: [{ x: 1020, y: 510, size: 'large' }, { x: 510, y: 1020, size: 'large' }] };
+  setup.map = { name: 'Fenced', players: 2, planet: 'tundra', corners: cornersFromTiles(rows), vents: [{ x: 1020, y: 510, size: 'large' }, { x: 510, y: 1020, size: 'large' }] };
   setup.starts = [{ x: 1950, y: 1950 }, { x: 510, y: 510 }];
   const game = createGame(setup);
   const b = brain('warden', 1, 3, setup.starts);
-  const across = () => game.state.units.some((u) => u.owner === 1 && u.kind === 'outpost'
+  const across = () => game.state.units.some((u) => u.owner === 1 && u.kind !== 'pontoon' && u.kind !== 'rover'
     && Math.max(Math.abs(Math.floor(u.x / PX / 60) - 8), Math.abs(Math.floor(u.y / PX / 60) - 8)) > 6);
   while (game.state.round <= 8 && !across()) {
     const p = whoseTurn(game);
@@ -188,5 +190,26 @@ test('fenced in by water, it lays Pontoons and builds across', () => {
     settle(game);
   }
   assert.ok(game.state.units.some((u) => u.owner === 1 && u.kind === 'pontoon'));
-  assert.ok(across(), 'an Outpost stands beyond the water');
+  assert.ok(across(), 'a building stands beyond the water');
+});
+
+test('a Pontoon counts as often as its aim would land it: narrow water is a poorer bet', () => {
+  // A channel 300 px east of the Citadel, and a wide lake as far south (spec 02, Landforms; decision D55).
+  const setup = makeSetup({ players: [{}, { computer: true }], fog: false });
+  setup.map = sketchMapData({ water: Array(32).fill('.......1'), rows: Array(6).fill('~~~~~~'), at: [0, 5] });
+  setup.starts = [{ x: 1500, y: 1500 }, { x: 150, y: 150 }];
+  const game = createGame(setup);
+  const env = envFor(game);
+  const citadel = citadelOf(game.state, 1);
+  const move = (x, y) => {
+    const shot = solve(game, env, citadel, { x: x * PX, y: y * PX });
+    return { type: 'launch', player: 1, launcher: citadel.id, item: 'pontoon', heading: shot.heading, power: shot.power };
+  };
+  const channel = move(450, 150); // the channel down tile column 7
+  const lake = move(150, 450); // the middle of the lake
+  assert.equal(brain('warden', 1).landChance(game, channel), 1, 'the hardest never strays');
+  const drifter = brain('drifter', 1);
+  const [c, l] = [drifter.landChance(game, channel), drifter.landChance(game, lake)];
+  assert.ok(c < l, `channel ${c}, lake ${l}`);
+  assert.ok(c < 0.5 && l > 0.5, `channel ${c}, lake ${l}`);
 });

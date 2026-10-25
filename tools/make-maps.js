@@ -35,11 +35,14 @@ export function buildMaps() {
   });
 }
 
+// Prints a map's corners, with its vents and starts over the corner at
+// each one's tile, and water marks as '*'.
 function show(map) {
-  const rows = map.rows.map((r) => r.split(''));
+  const rows = map.corners.map((r) => r.split(''));
+  map.water?.forEach((r, y) => [...r].forEach((m, x) => { if (m !== '.' && rows[y][x] !== '~') rows[y][x] = '*'; }));
   for (const v of map.vents) rows[Math.floor(v.y / 60)][Math.floor(v.x / 60)] = v.size[0].toUpperCase();
   map.starts[4][''].forEach(([p], k) => { rows[Math.floor(p.y / 60)][Math.floor(p.x / 60)] = String(k); });
-  console.log(`\n${map.name} (${map.rows.length} tiles, ${map.planet})`);
+  console.log(`\n${map.name} (${map.corners.length} tiles, ${map.planet})`);
   console.log(rows.map((r) => r.join('')).join('\n'));
 }
 

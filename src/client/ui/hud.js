@@ -253,7 +253,7 @@ export class Hud {
       const cx = rowX + k * 26 + 10;
       const color = PLAYER_COLORS[setup.players[player].color];
       const current = s.phase === 'turn' && s.turn?.player === player;
-      g.fillStyle(color, p.inRound ? 1 : 0.35);
+      g.fillStyle(color, 1);
       g.fillCircle(cx, rowY, 8);
       if (current) {
         g.lineStyle(2, 0xffffff, 1);
@@ -438,6 +438,23 @@ export class Hud {
     });
     g.lineStyle(1, 0x2c3846, 1);
     g.strokeRect(x - 1, y - 1, size + 2, size + 2);
+    // Outside the main view, the minimap is dimmed a little: the columns
+    // left and right of it, then the rows above and below it.
+    {
+      const v = this.miniView();
+      const fill = (x0, y0, w, h) => {
+        const ax = ((x0 % size) + size) % size;
+        const ay = ((y0 % size) + size) % size;
+        for (const [px, pw] of [[ax, Math.min(w, size - ax)], [0, ax + w - size]]) {
+          for (const [py, ph] of [[ay, Math.min(h, size - ay)], [0, ay + h - size]]) {
+            if (pw > 0 && ph > 0) g.fillRect(x + px, y + py, pw, ph);
+          }
+        }
+      };
+      g.fillStyle(0x000000, 0.35);
+      if (v.w < size) fill(v.x + v.w, 0, size - v.w, size);
+      if (v.h < size) fill(v.x, v.y + v.h, Math.min(v.w, size), size - v.h);
+    }
     const viewer = scene.viewer;
     const side = scene.session.game.sides[viewer];
     // Units the player can see, in their owners' colors.
@@ -478,24 +495,42 @@ export class Hud {
       g.lineStyle(1.5, 0xffffff, 1);
       g.strokeRect(x + wrapK(sel.x / PX, mapSize) * k - 3.5, y + wrapK((sel.y - sel.base * LIFT) / PX, mapSize) * k - 3.5, 7, 7);
     }
-    // The main view's area, repeated across the edges.
-    const cam = scene.cam;
-    const vw = cam.width * k;
-    const vh = cam.height * k;
-    const vx = wrapK(cam.x - cam.width / 2, mapSize) * k;
-    const vy = wrapK(cam.y - cam.height / 2, mapSize) * k;
+    // The main view's area: its four edges, wrapping across the
+    // minimap's sides like the map, so it reads as one rectangle.
+    const v = this.miniView();
+    const wrapX = (x0, w, fn) => {
+      const a = ((x0 % size) + size) % size;
+      fn(a, Math.min(w, size - a));
+      if (a + w > size) fn(0, a + w - size);
+    };
     g.lineStyle(1, 0xffffff, 0.8);
-    for (const ox of [-size, 0, size]) {
-      for (const oy of [-size, 0, size]) {
-        const rx = vx + ox;
-        const ry = vy + oy;
-        const x0 = Math.max(0, rx);
-        const y0 = Math.max(0, ry);
-        const x1 = Math.min(size, rx + vw);
-        const y1 = Math.min(size, ry + vh);
-        if (x1 > x0 && y1 > y0) g.strokeRect(x + x0, y + y0, x1 - x0, y1 - y0);
+    const line = (x0, y0, x1, y1) => g.lineBetween(x + x0, y + y0, x + x1, y + y1);
+    if (v.w < size) {
+      for (const ex of [v.x, v.x + v.w]) {
+        const lx = (((ex % size) + size) % size) + 0.5;
+        wrapX(v.y, Math.min(v.h, size), (y0, h) => line(lx, y0, lx, y0 + h));
       }
     }
+    if (v.h < size) {
+      for (const ey of [v.y, v.y + v.h]) {
+        const ly = (((ey % size) + size) % size) + 0.5;
+        wrapX(v.x, Math.min(v.w, size), (x0, w) => line(x0, ly, x0 + w, ly));
+      }
+    }
+  }
+
+  // The main view's area on the minimap, in minimap pixels from its
+  // corner: where it starts (wrapped) and how big it is.
+  miniView() {
+    const { size } = this.mini;
+    const cam = this.scene.cam;
+    const k = size / this.scene.world.size;
+    return {
+      x: wrapK(cam.x - cam.width / 2, this.scene.world.size) * k,
+      y: wrapK(cam.y - cam.height / 2, this.scene.world.size) * k,
+      w: cam.width * k,
+      h: cam.height * k,
+    };
   }
 
   // Whether a screen point is over the interface, not the map.

@@ -14,7 +14,7 @@ import { GENERATED } from './generated.js';
 
 export const MAPS = Object.freeze([...HANDMADE, ...GENERATED]
   .map((m, k) => [m, k])
-  .sort(([a, i], [b, j]) => a.rows.length - b.rows.length || i - j)
+  .sort(([a, i], [b, j]) => a.corners.length - b.corners.length || i - j)
   .map(([m]) => m));
 
 export function findMap(name) {

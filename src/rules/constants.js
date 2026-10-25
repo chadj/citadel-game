@@ -26,9 +26,15 @@ export const FLAT = 0;
 export const SLOPE = 1;
 export const WET = 2;
 
-// Slopes (spec 02, Slopes; decision D23).
+// Slopes (spec 02, Slopes, Landforms; decisions D23, D55).
 export const SLOPE_WIDTH = px(40); // about 40 px straight across
+export const CLIFF_INSET = px(3); // a cliff's top lies this far in from its high corners
 export const SHORE_WIDTH = px(15); // about 10 to 20 px
+
+// Water's shapes (spec 02, Landforms; decision D55).
+export const CHANNEL_HALF = px(15); // channels about half a tile wide
+export const POND_RADIUS = px(14); // a small round pond inside one tile
+export const LAKE_BIAS = px(2); // joins water across opposite corners
 export const BUMP_CELL = px(6); // spacing of the rocky bumps; divides a tile
 export const BUMP_HEIGHT = px(2); // the bumps rise or dip up to this much
 

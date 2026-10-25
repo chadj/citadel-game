@@ -120,26 +120,59 @@ export function candidates(game, plan, env, random) {
 }
 
 // The water tiles a launcher's land first meets, looking out along
-// every 15° up to `far`: the centers of the tiles.
+// every 15° up to `far`: a point of water in each. A Pontoon must land on
+// water, and a tile may be only partly water, or hold a channel half a
+// tile wide (spec 02, Landforms), so it aims at the point of the tile
+// with the most water around it, to allow for its aim. A tile holding
+// only a pond leads nowhere, and is left alone.
 function shoreWater(game, env, l, far) {
   const step = 15 * PX;
+  const map = game.map;
   const seen = new Set();
   const out = [];
   for (let h = 0; h < 360; h += 15) {
     const a = (h * Math.PI) / 180;
     for (let d = step; d <= far; d += step) {
-      const x = wrap(Math.round(l.x + Math.cos(a) * d), game.map.size);
-      const y = wrap(Math.round(l.y + Math.sin(a) * d), game.map.size);
+      const x = wrap(Math.round(l.x + Math.cos(a) * d), map.size);
+      const y = wrap(Math.round(l.y + Math.sin(a) * d), map.size);
       if (env.terrain(x, y).type !== WET) continue;
-      const tile = tileIndex(game.map, x, y);
+      const tile = tileIndex(map, x, y);
       if (!seen.has(tile)) {
         seen.add(tile);
-        out.push(tileCenter(game.map, tile));
+        if (map.lakeCases[tile] || map.arms[tile]) out.push(deepestWater(map, env, tile));
       }
       break;
     }
   }
   return out;
+}
+
+// The point of a tile, on a 15 px grid, with the widest ring of water
+// around it.
+const RINGS = [8, 16, 24, 32].map((r) => r * PX);
+function deepestWater(map, env, tile) {
+  const c = tileCenter(map, tile);
+  const wet = (x, y) => env.terrain(wrap(Math.round(x), map.size), wrap(Math.round(y), map.size)).type === WET;
+  let best = c;
+  let bestDepth = -1;
+  for (const oy of [0, -15, 15]) {
+    for (const ox of [0, -15, 15]) {
+      const p = { x: c.x + ox * PX, y: c.y + oy * PX };
+      if (!wet(p.x, p.y)) continue;
+      let depth = 0;
+      for (const r of RINGS) {
+        let all = true;
+        for (let k = 0; k < 8 && all; k++) all = wet(p.x + Math.cos((k * Math.PI) / 4) * r, p.y + Math.sin((k * Math.PI) / 4) * r);
+        if (!all) break;
+        depth++;
+      }
+      if (depth > bestDepth) {
+        bestDepth = depth;
+        best = { x: wrap(p.x, map.size), y: wrap(p.y, map.size) };
+      }
+    }
+  }
+  return best;
 }
 
 function nearest(size, p, list) {

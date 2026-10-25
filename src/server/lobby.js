@@ -178,12 +178,12 @@ export class Lobby {
     const prefs = m.me ?? {};
     const wanted = index(prefs.color, COLORS) ?? 0;
     room.seats[seat] = {
-      kind: 'human', conn, name: conn.name, faction: index(prefs.faction, FACTIONS) ?? 0, team: room.seats[seat].team, ready: false,
+      kind: 'human', conn, name: uniqueName(conn.name, this.players(room).map((p) => p.name)), faction: index(prefs.faction, FACTIONS) ?? 0, team: room.seats[seat].team, ready: false,
       color: claimColor([...others, { color: wanted }], others.length, wanted, this.random),
     };
     conn.room = room;
     conn.seat = seat;
-    this.system(room, `${conn.name} joined.`);
+    this.system(room, `${room.seats[seat].name} joined.`);
     this.roomChanged(room);
     this.listChanged();
   }
@@ -208,8 +208,9 @@ export class Lobby {
       }
     } else {
       const k = room.seats.findIndex((s) => s.conn === conn);
+      const name = k >= 0 ? room.seats[k].name : conn.name;
       if (k >= 0) room.seats[k] = { kind: 'open', team: room.seats[k].team };
-      this.system(room, `${conn.name} left.`);
+      this.system(room, `${name} left.`);
       this.roomChanged(room);
     }
     this.listChanged();
@@ -270,7 +271,8 @@ export class Lobby {
     const room = conn.room;
     const body = text(m.text, CHAT_MAX);
     if (!room || !body) return;
-    for (const s of room.seats) if (s.conn) this.send(s.conn, 'chat', { name: conn.name, text: body });
+    const name = room.seats[conn.seat]?.name ?? conn.name;
+    for (const s of room.seats) if (s.conn) this.send(s.conn, 'chat', { name, text: body });
   }
 
   system(room, line) {
@@ -342,5 +344,15 @@ export class Lobby {
       c.seat = null;
     }
     game.begin();
+  }
+}
+
+// A player's name in a game, told apart from the names already there:
+// a repeat gets the lowest free number, as "Player 2" (decision D56).
+export function uniqueName(name, taken) {
+  if (!taken.includes(name)) return name;
+  for (let k = 2; ; k++) {
+    const numbered = `${name.slice(0, NAME_MAX - String(k).length - 1)} ${k}`;
+    if (!taken.includes(numbered)) return numbered;
   }
 }

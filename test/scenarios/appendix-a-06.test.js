@@ -143,6 +143,29 @@ test('a Surge strikes an enemy unit whose conduit runs about 20 nodes back: the 
   assert.ok(count(events, 'surgeNode') >= nodes);
 });
 
+test('a Surge that destroys the unit it strikes still runs ahead of the burn, all the way to the launcher', () => {
+  const setup = makeSetup();
+  setup.starts = [{ x: 300, y: 300 }, { x: 900, y: 300 }];
+  const game = createGame(setup);
+  richPlayers(game);
+  pass(game);
+  const outpost = builtUnit(game, launchAt(game, 'outpost', 565, 300).events);
+  const nodes = game.state.conduits.find((c) => c.to === outpost.id).nodes.length;
+  outpost.armor = 20; // the Surge's 3 destroys it
+  pass(game);
+  pass(game);
+  const p2 = citadelOf(game.state, 1);
+  const { events } = launchAt(game, 'surge', 565, 300);
+  assert.ok(events.some((e) => e.type === 'destroy' && e.unit === outpost.id), 'the unit it strikes is destroyed');
+  // The damage passes the first node before the unit is hit.
+  const firstNode = events.findIndex((e) => e.type === 'surgeNode');
+  const hit = events.findIndex((e) => e.type === 'damage' && e.unit === outpost.id);
+  assert.ok(firstNode >= 0 && firstNode < hit);
+  assert.equal(count(events, 'surgeNode'), nodes, 'it passes every node');
+  const expected = Math.floor((30 * (50 - nodes)) / 50);
+  assert.equal(p2.armor, 50 - expected, `the launcher still takes ${expected / 10}`);
+});
+
 test('a Worm spreads one conduit further each turn cycle; enemy units lose 1 as it wears off, never below 0.1; the attacker\'s own are only disabled', () => {
   const setup = makeSetup();
   setup.starts = [{ x: 300, y: 650 }, { x: 300, y: 900 }];

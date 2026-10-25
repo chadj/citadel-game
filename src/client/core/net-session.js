@@ -27,7 +27,6 @@ export class NetSession extends Session {
     this.net = net;
     this.me = me;
     this.viewer = me;
-    this.queue = [];
     this.presence = new Map();
     for (const move of moves) {
       const result = applyMove(this.game, move);
@@ -39,6 +38,7 @@ export class NetSession extends Session {
     this.hashed = this.moves.length;
     if (moves.length > 0) this.sendHash();
     this.startTurn();
+    this.queue = (net.takeEarly?.() ?? []).filter((m) => m.n > moves.length);
     this.unsubscribe = [
       net.on('move', (m) => this.queue.push(m)),
       net.on('refused', (m) => {

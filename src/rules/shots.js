@@ -365,10 +365,12 @@ function landBuilding(ctx, shot, landing) {
 }
 
 // A building whose landing failed is never really there. Its conduit
-// burns back from its end (spec 05, Landing).
+// burns back from its end (spec 05, Landing). The event says where: the
+// landing point, or where the building was in the air.
 export function failBuilding(ctx, shot, reason, landing = null) {
   const s = ctx.game.state;
-  ctx.emit({ type: 'buildingFailed', shot: shot.id, kind: shot.item, reason, ...(landing && { x: landing.x, y: landing.y }) });
+  const at = landing ? { x: landing.x, y: landing.y } : { x: shot.x, y: shot.y, z: shot.z };
+  ctx.emit({ type: 'buildingFailed', shot: shot.id, kind: shot.item, reason, ...at });
   const conduit = s.conduits.find((c) => c.id === shot.conduit);
   if (!conduit) return;
   conduit.shot = null;

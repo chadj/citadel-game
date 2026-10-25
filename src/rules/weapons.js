@@ -17,7 +17,7 @@ import { UNIT_KINDS } from './units.js';
 import { cycleEnd } from './effects.js';
 import { isGone } from './conduits.js';
 import {
-  groundGap, heightGap, gap3, nearest, hurt, shotExplosion, schedule, startSurge,
+  groundGap, heightGap, gap3, nearest, hurt, shotExplosion, schedule, startSurge, surgeFromUnit,
 } from './combat.js';
 import { infect } from './worm.js';
 
@@ -57,9 +57,11 @@ export function weaponEnd(ctx, shot, how, p, struck) {
         return g <= reach && heightGap(at.z, u) <= reach ? g : null;
       });
       if (target) {
-        hurt(ctx, target, SURGE_DAMAGE, credit);
+        // The damage starts back along the conduit before the unit takes
+        // its own, so it outruns the burn if the unit is destroyed.
         const into = s.conduits.find((c) => c.to === target.id);
-        if (into && into.nodes.length > 0) startSurge(s, into, into.nodes.length - 1, -1, shot.owner, credit);
+        if (into && into.nodes.length > 0) surgeFromUnit(ctx, into, shot.owner, credit);
+        hurt(ctx, target, SURGE_DAMAGE, credit);
         return undefined;
       }
       // No unit in reach: the nearest conduit node, and both ways from it.

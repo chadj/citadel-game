@@ -117,6 +117,23 @@ test('a player asking for a taken color gets a free one; only the host changes t
   assert.ok(![room.seats[0].color, room.seats[1].color].includes(room.seats[2].color));
 });
 
+test('a name already in the game gets a number, in the seats, the chat and the game', () => {
+  const time = clock();
+  const lobby = new Lobby({ ...time, random: () => 0.5 });
+  const host = client(lobby, 'Player');
+  const guest = client(lobby, 'Player');
+  host.say('host', { name: 'Same names', settings: SETTINGS, me: {} });
+  guest.say('lobby');
+  guest.say('join', { room: guest.last('games').games[0].id, me: {} });
+  assert.deepEqual(guest.last('room').room.seats.slice(0, 2).map((x) => x.name), ['Player', 'Player 2']);
+  assert.ok(host.all('chat').some((m) => m.system === 'Player 2 joined.'));
+  guest.say('chat', { text: 'hi' });
+  assert.equal(host.last('chat').name, 'Player 2');
+  guest.say('ready', { ready: true });
+  host.say('start');
+  assert.deepEqual(guest.last('start').setup.players.map((p) => p.name), ['Player', 'Player 2']);
+});
+
 test('the host starts once everyone is ready', () => {
   const { host, guest } = twoPlayers();
   guest.say('join', { room: guest.last('games').games[0].id });

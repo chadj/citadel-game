@@ -47,7 +47,7 @@ function checkMap(m) {
 test('the same settings and seed always give the same map; another seed, another map', () => {
   const a = generateMap(settings(), 7);
   assert.deepEqual(generateMap(settings(), 7), a);
-  assert.notDeepEqual(generateMap(settings(), 8).rows, a.rows);
+  assert.notDeepEqual(generateMap(settings(), 8).corners, a.corners);
 });
 
 test('every style, size and water step gives a valid map: starts and vents on flat ground', () => {
@@ -56,7 +56,7 @@ test('every style, size and water step gives a valid map: starts and vents on fl
       for (const water of [0, 2, 4]) {
         const m = generateMap(settings({ style, tiles, water, terrain: water === 4 ? 4 : 1, energy: water }), tiles + water);
         checkMap(m);
-        assert.equal(m.rows.length, tiles);
+        assert.equal(m.corners.length, tiles);
         assert.ok(m.vents.length > 0);
       }
     }
@@ -67,17 +67,27 @@ test('the planet sets the heights, and nothing else', () => {
   for (const planet of Object.keys(PLANETS)) {
     const m = generateMap(settings({ planet }), 3);
     assert.equal(loadMap(mapData(m)).plateauHeight, PLANETS[planet].plateau);
-    assert.deepEqual(m.rows, generateMap(settings(), 3).rows);
+    assert.deepEqual(m.corners, generateMap(settings(), 3).corners);
+    assert.deepEqual(m.water, generateMap(settings(), 3).water);
   }
 });
 
 test('the mirrored style: every quarter the same, so every start has the same surroundings', () => {
   const m = generateMap(settings({ style: 'mirror', tiles: 48 }), 12);
-  const n = m.rows.length;
+  const n = m.corners.length;
+  // Corner x mirrors to n - x; tile x to n - 1 - x.
+  const mark = (x, y) => (m.water?.[(y + n) % n][(x + n) % n] ?? '.').replace('.', '0') | 0;
   for (let y = 0; y < n; y++) {
     for (let x = 0; x < n; x++) {
-      assert.equal(m.rows[y][x], m.rows[y][n - 1 - x]);
-      assert.equal(m.rows[y][x], m.rows[n - 1 - y][x]);
+      assert.equal(m.corners[y][x], m.corners[y][(n - x) % n]);
+      assert.equal(m.corners[y][x], m.corners[(n - y) % n][x]);
+      // A channel across a tile's north edge, mirrored, crosses the same
+      // edge of the mirrored tile, or the south edge.
+      assert.equal(mark(x, y) & 1, mark(n - 1 - x, y) & 1);
+      assert.equal(mark(x, y) & 1, mark(x, n - y) & 1);
+      assert.equal(mark(x, y) & 2, mark(n - x, y) & 2);
+      assert.equal(mark(x, y) & 2, mark(x, n - 1 - y) & 2);
+      assert.equal(mark(x, y) & 4, mark(n - 1 - x, n - 1 - y) & 4);
     }
   }
   const size = n * 60;
@@ -93,7 +103,7 @@ test('the mirrored style: every quarter the same, so every start has the same su
   assert.deepEqual([d.x, d.y], [size - a.x, size - a.y]);
 });
 
-// Land regions, joined across edges and corners.
+// Land regions of corners, joined across edges and corners.
 function islands(rows) {
   const n = rows.length;
   const seen = new Uint8Array(n * n);
@@ -123,8 +133,9 @@ function islands(rows) {
 
 test('water: none at the low end; at the high end the map breaks into islands', () => {
   for (const style of STYLES) {
-    assert.ok(!generateMap(settings({ style, water: 0 }), 4).rows.join('').includes('~'));
-    const broken = [1, 2, 3, 4, 5].filter((seed) => islands(generateMap(settings({ style, tiles: 48, water: 4 }), seed).rows) >= 3);
+    const dry = generateMap(settings({ style, water: 0 }), 4);
+    assert.ok(!dry.corners.join('').includes('~') && dry.water === undefined);
+    const broken = [1, 2, 3, 4, 5].filter((seed) => islands(generateMap(settings({ style, tiles: 48, water: 4 }), seed).corners) >= 3);
     assert.ok(broken.length >= 4, `${style}: islands on ${broken.length} of 5 maps`);
   }
 });
@@ -149,7 +160,7 @@ test('left to chance, Energy, Terrain and Water avoid both extremes; the rest ta
 
 test('the maps that come with the game: all five sizes, all six planets, every one valid', () => {
   assert.equal(new Set(MAPS.map((m) => m.name)).size, MAPS.length);
-  assert.deepEqual(new Set(MAPS.map((m) => m.rows.length)), new Set(MAP_SIZES));
+  assert.deepEqual(new Set(MAPS.map((m) => m.corners.length)), new Set(MAP_SIZES));
   assert.deepEqual(new Set(MAPS.map((m) => m.planet)), new Set(Object.keys(PLANETS)));
   for (const m of MAPS) checkMap(m);
 });

@@ -44,8 +44,11 @@ entries in `decisions.md` it relies on.
   `src/rules/terrain/planets.js`, `src/rules/terrain/map.js`,
   `src/rules/terrain/terrain.js`
 - **Spec:** 02 Shape and size, Planets, Terrain, Levels, Slopes, Water,
-  Pontoons (the terrain change only), Energy Vents (sizes only).
-- **Decisions:** D4, D17 (map sizes), D23, D24, D26.
+  Landforms (corners, cliff pieces, diagonal cliffs, smooth joins,
+  water forms, painted craters as map data), Pontoons (the terrain
+  change only), Energy Vents (sizes only).
+- **Decisions:** D4, D17 (map sizes), D23, D24, D26, D55.
+- **Tests:** `test/rules/terrain.test.js`, `test/rules/landforms.test.js`.
 
 ## The map generator and the maps that come with the game
 - **Files:** `src/mapgen/generate.js`, `src/maps/index.js`,
@@ -53,9 +56,10 @@ entries in `decisions.md` it relies on.
   `tools/make-maps.js`); the setup screen's generator controls
   (`src/client/scenes/setup.js`, `src/client/core/newgame.js`).
 - **Spec:** 02 Start positions, Maps that come with the game,
-  Generated maps; 12 What the host chooses (the map list), When the
-  game starts (a generated map).
-- **Decisions:** D16, D26, D41, D46, D47.
+  Generated maps, Landforms (generated maps use all the pieces and water
+  forms, and painted craters); 12 What the host chooses (the map list),
+  When the game starts (a generated map).
+- **Decisions:** D16, D26, D41, D46, D47, D55.
 
 ## Flight and wind
 - **Files:** `src/rules/flight.js`, `src/rules/constants.js` (flight and
@@ -147,24 +151,30 @@ entries in `decisions.md` it relies on.
   - Phaser: `main.js`, `scenes/*`, `ui/*`, `render/world.js`,
     `render/effects.js`
   - rules events gained fields for the screen and summary (`by`,
-    `owner`, `gains`, `amount`, `unitOwner`, `spread`); the state is
-    unchanged.
-- **Spec:** 10 (all but sounds and online-only parts); 01 Aiming,
-  Power, What players see; 02 What players see, Start positions; 03
-  The shot clock, What players see; 04 How units show their state; 05,
-  06, 07 What players see; 08 What players see; 12 Ways to play (hot
-  seat, against the computer), Setting up a game, When the game
-  starts, Replays; Appendix A 01 (the displayed aim and meter).
-- **Decisions:** D16, D22, D28, D38, D39, D40, D41.
+    `owner`, `gains`, `amount`, `unitOwner`, `spread`, a position
+    on every `buildingFailed`, and `burnt` on a `destroy` caused by a
+    conduit's burn); the state is unchanged.
+- **Spec:** 10 (all but sounds and online-only parts); 01 Aiming, Power,
+  What players see; 02 What players see, Start positions, Landforms
+  (Variety: looks and painted craters); 03 The shot
+  clock, What players see; 04 How units show their state; 05, 06, 07
+  What players see; 05 Conduit lights; 08 What players see; 12 Ways to
+  play (hot seat, against the computer), Setting up a game, When the
+  game starts, Replays; Appendix A 01 (the displayed aim and meter).
+- **Decisions:** D16, D22, D28, D38, D39, D40, D41, D53, D54, D55
+  (the terrain's looks and painted craters, in `render/terrain-art.js`),
+  D57 (the order of play doesn't show who has passed).
 
 ## Computer players
 - **Files:** `src/ai/personalities.js`, `src/ai/belief.js`,
   `src/ai/aim.js`, `src/ai/value.js`, `src/ai/candidates.js`,
-  `src/ai/brain.js`; `src/client/core/computers.js`,
+  `src/ai/land.js`, `src/ai/brain.js`; `src/client/core/computers.js`,
   `src/client/core/session.js` (thinking in slices).
 - **Spec:** 09 (all of it); 12 Computer players (the personality
   choice); 01 (the flight model it aims with).
-- **Decisions:** D43, D44, D45, D48 (crossing water).
+- **Decisions:** D43, D44, D45, D48 (crossing water), D55 (a Pontoon aimed
+  at a wet point of a tile that is only partly water), D58 (bridging
+  only water that's in the way).
 - **Known gaps** (spec 09 not yet covered):
   - **Planning ahead:** apart from crossing water (D48), it looks one
     move ahead; it doesn't plan a chain of Outposts toward a goal, or
@@ -220,7 +230,7 @@ entries in `decisions.md` it relies on.
   different machines, is checked live by the server's hash compare);
   03 Players who disconnect; 10 Chat, Quit; 11 the aide's news of
   players not responding.
-- **Decisions:** D52.
+- **Decisions:** D52, D56 (numbered repeat names; a duplicated tab starts afresh).
 - **Known gaps** (to come back to):
   - **Rejoining after a disconnect** isn't offered (the spec makes
     rejoining optional).

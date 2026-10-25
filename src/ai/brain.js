@@ -21,8 +21,9 @@ import { MIN_TO_PLAY, POWER_MAX, PX, WET } from '../rules/constants.js';
 import { delta, wrap } from '../rules/math/wrap.js';
 import { tileIndex, tileCenter, sampleTerrain } from '../rules/terrain/terrain.js';
 import { Memory } from './belief.js';
-import { envFor, solve } from './aim.js';
+import { envFor, solve, landing } from './aim.js';
 import { candidates } from './candidates.js';
+import { landDistance } from './land.js';
 import { evaluate, planFor } from './value.js';
 import { personality as pick, STYLE_WEIGHTS } from './personalities.js';
 
@@ -31,6 +32,8 @@ const EYE = [1, 0.6, 0.3, 0.1, 0]; // its error, by how often it has repeated a 
 const ROBUST_TOP = 6; // the best moves played out again with error
 const CROSSING_SHARE = 0.8; // of what the building after a Pontoon adds
 const CROSSING_MAX = 400; // px of water a crossing plan looks across
+const CROSSING_DETOUR = 2; // how much longer the way round by land must be
+const CHANCE_SPREAD = [-1, -0.5, 0, 0.5, 1]; // aim errors tried, as shares of the most it strays
 const now = () => (globalThis.performance ? performance.now() : Date.now());
 
 // A random number source from a seed, so tests can repeat a game.
@@ -123,6 +126,7 @@ export class Brain {
 
     const passValue = this.playOut(belief, plan, pass);
     progress.passValue = passValue;
+    this.passValue = passValue;
     for (const c of list) {
       const move = { type: 'launch', player, ...withoutTarget(c) };
       const v = this.score(belief, plan, move, c);
@@ -135,6 +139,8 @@ export class Brain {
     const p = this.personality;
     if (p.aim > 0 || p.power > 0) {
       for (const e of progress.scored.slice(0, ROBUST_TOP)) {
+        // A Pontoon's chance of landing is in its value already.
+        if (e.c.cross) continue;
         const vs = [e.v];
         for (let k = 0; k < 2; k++) {
           const v = this.score(belief, plan, this.stray(e.move, 0.7), e.c);
@@ -173,8 +179,15 @@ export class Brain {
   // out; then, along the line from the launcher through it, it supposes
   // Pontoons on the rest of the water, and that it has its turn again
   // with enough for an Outpost; and plays out the best Outpost onto the
-  // land past the water. A share of what that adds counts now: less for
-  // every further Pontoon the crossing needs, which it pays for too.
+  // land past the water. A share of what that adds, over the best Outpost
+  // this side of the water, counts now: less for every further Pontoon
+  // the crossing needs, which it pays for too. Only water that land
+  // doesn't go round, or goes a long way round, is worth crossing.
+  //
+  // Narrow water, such as a channel half a tile wide (spec 02,
+  // Landforms), is easy to miss: the plan counts only as often as its
+  // own aim would land the Pontoon, and the rest of the time it has
+  // spent a Pontoon for nothing (decision D55).
   crossing(belief, plan, move) {
     const copy = played(belief, move);
     if (!copy) return null;
@@ -183,6 +196,40 @@ export class Brain {
     const pontoon = s.units.find((u) => u.kind === 'pontoon' && u.owner === move.player && !belief.state.units.some((b) => b.id === u.id));
     const launcher = findUnit(s, move.launcher);
     if (!pontoon || !launcher || s.phase !== 'turn') return now;
+    const chance = this.landChance(belief, move);
+    const missed = (this.passValue ?? now) - itemCost('pontoon');
+    const planned = this.crossingPlan(copy, plan, move, now, pontoon, launcher);
+    return chance * planned + (1 - chance) * missed;
+  }
+
+  // How often a Pontoon launched as `move` would land on free water,
+  // with this computer's aim error: over an even spread of the error it
+  // may have, each shot flown as it aims them.
+  landChance(belief, move) {
+    const p = this.personality;
+    if (p.aim === 0 && p.power === 0) return 1;
+    const launcher = findUnit(belief.state, move.launcher);
+    if (!launcher) return 0;
+    const env = envFor(belief);
+    const map = belief.map;
+    const taken = new Set(belief.state.units.filter((u) => u.kind === 'pontoon' || u.kind === 'rover').map((u) => tileIndex(map, u.x, u.y)));
+    let hits = 0;
+    let shots = 0;
+    for (const a of CHANCE_SPREAD) {
+      for (const w of CHANCE_SPREAD) {
+        const heading = (((move.heading + Math.round(a * p.aim)) % 360) + 360) % 360;
+        const power = Math.max(0, Math.min(POWER_MAX, move.power + Math.round(w * p.power * POWER_MAX)));
+        const at = landing(belief, env, launcher, heading, power);
+        shots++;
+        if (sampleTerrain(map, at.x, at.y).type === WET && !taken.has(tileIndex(map, at.x, at.y))) hits++;
+      }
+    }
+    return hits / shots;
+  }
+
+  // What the crossing a Pontoon starts is worth, if it lands.
+  crossingPlan(copy, plan, move, now, pontoon, launcher) {
+    const s = copy.state;
     const next = { ...copy, state: structuredClone(s), events: [] };
     const t = next.state;
     const size = next.map.size;
@@ -206,17 +253,26 @@ export class Brain {
       extra += 1;
     }
     if (shore === 0) return now;
+    // Water that land goes round, not far out of the way, is no reason
+    // to cross (decision D58).
+    const far = along(shore + 45);
+    const straight = Math.hypot(delta(launcher.x, far.x, size), delta(launcher.y, far.y, size));
+    if (landDistance(next.map, launcher, far) <= CROSSING_DETOUR * straight) return now;
     const env = envFor(next);
+    const outpostAt = (d) => {
+      const shot = solve(next, env, launcher, along(d));
+      if (!shot || shot.miss > 20 * PX) return -Infinity;
+      const after = played(next, { type: 'launch', player: move.player, launcher: launcher.id, item: 'outpost', heading: shot.heading, power: shot.power });
+      return after ? evaluate(after, plan) : -Infinity;
+    };
     // The Pontoons alone may be enough: something can be built across.
     let best = evaluate(next, plan);
-    const spots = [0, shore + 45, shore + 100, shore + 160];
-    for (const d of spots) {
-      const shot = solve(next, env, launcher, along(d));
-      if (!shot || shot.miss > 20 * PX) continue;
-      const after = played(next, { type: 'launch', player: move.player, launcher: launcher.id, item: 'outpost', heading: shot.heading, power: shot.power });
-      if (after) best = Math.max(best, evaluate(after, plan));
-    }
-    const gain = best - before - extra * itemCost('pontoon');
+    for (const d of [0, shore + 45, shore + 100, shore + 160]) best = Math.max(best, outpostAt(d));
+    // What it could build this side of the water instead: the crossing
+    // counts only for what it adds to that (decision D58).
+    let home = before;
+    for (const d of [-45, -100]) home = Math.max(home, outpostAt(d));
+    const gain = best - home - extra * itemCost('pontoon');
     return now + CROSSING_SHARE ** (1 + extra) * Math.max(0, gain);
   }
 

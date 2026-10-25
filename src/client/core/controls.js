@@ -13,9 +13,17 @@ import { Meter } from './meter.js';
 
 export const LEVELS = Object.freeze([1, 3, 7]);
 
+// The menu's order, three to a row: the rules' list with its two rows
+// swapped at every level (user's choice).
+const MENU_ORDER = {
+  1: ['shell', 'scatter', 'repair', 'interceptor', 'spire', 'pontoon'],
+  3: ['pulse', 'surge', 'salvager', 'skyProbe', 'charges', 'seeker'],
+  7: ['outpost', 'rover', 'worm', 'extractor', 'barrier', 'battery'],
+};
+
 // The items of a level, in menu order.
 export const ITEMS_BY_LEVEL = Object.freeze(Object.fromEntries(
-  LEVELS.map((level) => [level, Object.keys(ITEMS).filter((id) => ITEMS[id].level === level)]),
+  LEVELS.map((level) => [level, MENU_ORDER[level]]),
 ));
 
 export class PlayerControls {

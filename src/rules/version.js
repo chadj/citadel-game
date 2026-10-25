@@ -3,4 +3,4 @@
 
 // The rules' version, saved in every replay (spec 12, Replays). Bump it
 // whenever a change could make a recorded game play back differently.
-export const RULES_VERSION = 1;
+export const RULES_VERSION = 3;

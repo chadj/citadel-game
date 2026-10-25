@@ -30,12 +30,20 @@ function link(game, token) {
       return () => handlers.get(t).delete(fn);
     },
     got: [],
+    // As the real connection does, moves before the game's screen opens.
+    early: null,
+    takeEarly: () => {
+      const early = net.early ?? [];
+      net.early = null;
+      return early;
+    },
   };
   net.conn = {
     token,
     send: (text) => {
       const m = decode(text);
       net.got.push(m);
+      if (m.t === 'move' && net.early) net.early.push(m);
       for (const fn of handlers.get(m.t) ?? []) fn(m);
     },
   };
@@ -102,6 +110,23 @@ test('a player taking back their seat catches up at once, and agrees with everyo
   assert.equal(caughtUp.moves.length, 3);
   assert.equal(hashState(caughtUp.state), game.hashes[3]);
   assert.equal(hashState(caughtUp.state), hashState(sessions[0].state));
+});
+
+test('a move that comes before the game\'s screen opens waits for it there', () => {
+  // A tab in the background opens the game's screen only when it's shown.
+  const setup = makeSetup({ players: 2, clock: 0 });
+  const game = new NetGame(setup, [], { setTimer: () => {}, clearTimer: () => {}, defer: () => {} });
+  const nets = [link(game, 'a'), link(game, 'b')];
+  game.seats = nets.map((net, i) => ({ conn: net.conn, token: net.conn.token, heard: 0, state: 'ok', player: i }));
+  nets.forEach((net) => { net.early = []; });
+  game.begin();
+  const first = game.game.state.turn.player;
+  nets[first].send('move', { move: { type: 'pass', player: first } });
+  const late = new NetSession(setup, { net: nets[1 - first], me: 1 - first });
+  for (let t = 0; t < 3000; t += 50) late.advance(50);
+  assert.equal(late.moves.length, 1);
+  assert.equal(late.state.turn.player, 1 - first);
+  assert.ok(late.canAct(1 - first));
 });
 
 test('the turn\'s player\'s own machine says when its time is up', () => {

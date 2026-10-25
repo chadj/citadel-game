@@ -122,9 +122,20 @@ export class Effects {
         // debris briefly; the others' blasts come a moment later.
         if (e.how === 'destroyed' && e.kind !== 'skyProbe') this.crater(p.x, p.y, 9);
         const explodes = e.how === 'destroyed' && ['extractor', 'charge', 'rover'].includes(e.kind);
+        // A building whose conduit broke just after it landed: its
+        // landing failed, so a small explosion, as for buildingFailed.
+        if (e.how === 'failed') this.smallBoom(p.x, p.y, p.z);
         if (!explodes) {
-          this.add('debris', p.x, p.y, p.z, { dur: 1300 });
-          if (e.how === 'destroyed') this.smoke(p.x, p.y, p.z, 14, 2200);
+          this.add('debris', p.x, p.y, p.z, { dur: 1300, big: e.how === 'destroyed' });
+          if (e.how === 'destroyed') {
+            // Units that don't explode do no damage when destroyed, but
+            // still go up in an explosion of their own size, so every
+            // loss shows, in the fog too: a chain of buildings taken down
+            // by a burning conduit goes off one by one (decision D53).
+            const r = Math.max(16, (UNIT_KINDS[e.kind]?.radius ?? 15 * PX) / PX * 1.5);
+            this.add('boom', p.x, p.y, p.z, { r, dur: 800 + r * 12, embers: Effects.embers(10, r) });
+            this.smoke(p.x, p.y, p.z, 14, 2200);
+          }
         }
         break;
       }
@@ -171,9 +182,17 @@ export class Effects {
         break;
       case 'lost':
       case 'pontoonLost':
-      case 'buildingFailed':
         if (e.x !== undefined) this.add('debris', e.x, e.y, e.z ?? this.groundAt(e.x, e.y).z, { dur: 900 });
         break;
+      // A building that fails to land goes up in a small explosion, seen
+      // through the fog too (decision D53).
+      case 'buildingFailed': {
+        if (e.x === undefined) break;
+        const z = e.z ?? this.groundAt(e.x, e.y).z;
+        this.add('debris', e.x, e.y, z, { dur: 900 });
+        this.smallBoom(e.x, e.y, z);
+        break;
+      }
       case 'chargeSetOff':
       case 'roverTriggered': {
         const p = this.unitPoint(e.unit);
@@ -188,6 +207,12 @@ export class Effects {
       default:
         break;
     }
+  }
+
+  // A building that fails to land: a small explosion, big and long
+  // enough to catch the eye, in the fog too.
+  smallBoom(x, y, z) {
+    this.add('boom', x, y, z, { r: 22, dur: 1200, embers: Effects.embers(12, 22) });
   }
 
   // Decision D38: the launch's charging and burst show on the launching
@@ -265,9 +290,16 @@ function drawGlow(g, e, t, sx, sy) {
       break;
     case 'pulse':
     case 'splash':
+      g.fillStyle(0xffffff, 0.12 * fade);
+      g.fillCircle(sx, sy, 24);
+      break;
     case 'debris':
       g.fillStyle(0xffffff, 0.12 * fade);
       g.fillCircle(sx, sy, 24);
+      break;
+    case 'flame':
+      g.fillStyle(0xff8a30, 0.3 * fade);
+      g.fillCircle(sx, sy - 4, 10);
       break;
     default:
       break;
@@ -379,11 +411,15 @@ function drawOne(g, e, t, sx, sy, dark = false) {
       break;
     }
     case 'debris': {
-      for (let k = 0; k < 7; k++) {
+      const big = !!e.big;
+      const n = big ? 14 : 7;
+      for (let k = 0; k < n; k++) {
         const a = k * 2.4;
-        const d = 3 + 12 * t;
+        const d = big ? 4 + (14 + (k % 3) * 6) * Math.sqrt(t) : 3 + 12 * t;
+        // Pieces fly up and out, then fall.
+        const up = big ? 14 * Math.sin(Math.PI * Math.min(1, t * 1.4)) * (0.5 + (k % 2) * 0.5) : 0;
         g.fillStyle(dark ? 0xd8cfc4 : 0x50483f, 1 - t);
-        g.fillRect(sx + Math.cos(a) * d, sy + Math.sin(a) * d * 0.6 + 6 * t, 3, 2);
+        g.fillRect(sx + Math.cos(a) * d, sy + Math.sin(a) * d * 0.6 + 6 * t - up, big ? 4 : 3, big ? 3 : 2);
       }
       break;
     }

@@ -188,11 +188,18 @@ test('Snap Back returns the view after tracking moved it, unless the player scro
 // The build menu, The launching view).
 
 import { PlayerControls, ITEMS_BY_LEVEL } from '../../src/client/core/controls.js';
+import { ITEMS } from '../../src/rules/items.js';
 import { makeGame } from '../helpers/setups.js';
 import { place } from '../helpers/build.js';
 
 test('items are grouped by level, 1, 3 and 7; a Battery offers only the attacking weapons; a disabled launcher none', () => {
   assert.equal(Object.values(ITEMS_BY_LEVEL).flat().length, 18);
+  for (const [level, ids] of Object.entries(ITEMS_BY_LEVEL)) {
+    const expected = Object.keys(ITEMS).filter((id) => ITEMS[id].level === Number(level));
+    assert.deepEqual([...ids].sort(), expected.sort(), `level ${level} lists each of its items once`);
+  }
+  // At level 1 the weapons come first.
+  assert.deepEqual(ITEMS_BY_LEVEL[1].slice(0, 3), ['shell', 'scatter', 'repair']);
   const game = makeGame();
   const c = new PlayerControls(game, 0);
   assert.equal(c.items(1).length, 6);

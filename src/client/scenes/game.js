@@ -54,8 +54,9 @@ export class GameScene extends BaseScene {
     this.overrideOn = false;
     this.chat = [];
     this.menu = null;
-    // The scene object is reused from game to game: start it afresh.
-    this.lastTurn = undefined;
+    // The scene object is reused from game to game: start it afresh. The
+    // first turn started with the session, before this screen listened.
+    this.lastTurn = session.state.turn?.player;
     this.lastAttacked = null;
     this.chaseShots = null;
     this.roverTrack = null;
@@ -185,7 +186,7 @@ export class GameScene extends BaseScene {
     switch (e.type) {
       case 'turnStart':
         // The menu resets when a player's own move is over.
-        if (this.lastTurn !== undefined) this.views.get(this.lastTurn)?.resetMenu();
+        this.views.get(this.lastTurn)?.resetMenu();
         this.lastTurn = e.player;
         this.cam.snapBack(this.prefs.snapBack);
         this.hud.showBanner(this.turnBanner(e.player));

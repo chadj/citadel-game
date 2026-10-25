@@ -292,7 +292,7 @@ export class SetupScene extends BaseScene {
     });
     const map = MAPS[this.mapIndex];
     if (map) {
-      const n = map.rows.length;
+      const n = map.corners.length;
       this.settings[0].setText(`Map: ${map.name} (${n} × ${n} tiles, ${map.players} players)`);
     } else {
       this.settings[0].setText('Map: Generated');

@@ -12,6 +12,9 @@ import { MoodTracker, moodOf } from '../../src/client/core/mood.js';
 import { SOUNDS } from '../../src/client/audio/sounds.js';
 import { RECIPES } from '../../src/client/audio/synth.js';
 import { PX } from '../../src/rules/constants.js';
+import { citadelOf } from '../../src/rules/units.js';
+import { makeGame, pass, whoseTurn } from '../helpers/setups.js';
+import { launchAt, builtUnit, destroyAndSettle, richPlayers, pos } from '../helpers/build.js';
 
 const SIZE = 4096 * PX;
 
@@ -175,6 +178,27 @@ test('what the aide comments on, from its player\'s point of view', () => {
   assert.deepEqual(aideKeysFor({ type: 'gameOver', winner: 1 }, ctx()), ['defeat']);
   assert.deepEqual(aideKeysFor({ type: 'disabled', owner: 1, by: 2, unit: 5 }, ctx()), ['enemyBarrierDown']);
   assert.deepEqual(aideKeysFor({ type: 'built', owner: 0, kind: 'extractor', unit: 5 }, ctx()), ['ventExtractor']);
+  // Taken down by the burn along a conduit: not a hit, but still a loss.
+  assert.deepEqual(aideKeysFor({ type: 'destroy', how: 'destroyed', burnt: true, by: 0, owner: 1, unit: 5 }, ctx()), []);
+  assert.deepEqual(aideKeysFor({ type: 'destroy', how: 'destroyed', burnt: true, by: 1, owner: 0, unit: 5 },
+    ctx({ turnPlayer: 1, onScreen: () => false })), ['attackedOffscreen']);
+});
+
+test('in a chain, only the building that was hit counts as a hit; those the burn takes down are marked', () => {
+  const game = makeGame({ players: 2 });
+  richPlayers(game);
+  const me = whoseTurn(game);
+  let from = citadelOf(game.state, me);
+  const chain = [];
+  for (let k = 0; k < 3; k++) {
+    const { x, y } = pos(from);
+    from = builtUnit(game, launchAt(game, 'outpost', x + 250, y, { launcher: from }).events);
+    chain.push(from);
+    while (whoseTurn(game) !== me) pass(game);
+    richPlayers(game);
+  }
+  const destroys = destroyAndSettle(game, chain[0]).filter((e) => e.type === 'destroy');
+  assert.deepEqual(destroys.map((e) => [e.unit, !!e.burnt]), chain.map((u, k) => [u.id, k > 0]));
 });
 
 // The music ------------------------------------------------------------

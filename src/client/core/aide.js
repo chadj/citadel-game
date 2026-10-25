@@ -140,8 +140,9 @@ export function aideKeysFor(e, ctx) {
     case 'damage':
     case 'destroy':
       if (e.how === 'salvaged' || e.how === 'failed') return [];
-      // My shot, on my turn.
-      if (myTurn && e.by === me && e.owner !== undefined) return [ours(e.owner) ? 'hitOwn' : 'hitEnemy'];
+      // My shot, on my turn. A building taken down by the burn along its
+      // conduit wasn't hit by the shot, though the shot gets the credit.
+      if (myTurn && e.by === me && e.owner !== undefined && !e.burnt) return [ours(e.owner) ? 'hitOwn' : 'hitEnemy'];
       // Mine, off screen, on another player's turn.
       if (!myTurn && mine(e.owner) && !ctx.onScreen(e.unit)) return ['attackedOffscreen'];
       return [];

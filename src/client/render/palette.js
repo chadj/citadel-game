@@ -16,7 +16,7 @@ export const PLAYER_COLORS = Object.freeze([
 
 export const PLAYER_COLOR_NAMES = Object.freeze(['Red', 'Blue', 'Green', 'Yellow', 'Violet', 'Orange']);
 
-export const FACTION_NAMES = Object.freeze(['Meridian', 'Ostrevan', 'Deepbore', 'Ruuk']);
+export const FACTION_NAMES = Object.freeze(['Ion Mercantile', 'Rivet & Ash', 'Toroid Drift', 'Crater Born']);
 
 // Per planet: the levels' colors (Ground, Plateau, Mountain), the slope
 // tint, and the water: deep and shallow. Splashes use the water colors.

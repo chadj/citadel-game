@@ -20,3 +20,30 @@ with:
 In spec 10, replace "a marker shows on that conduit (chapter 05)." with:
 
 > a marker shows on the aim (chapter 05).
+
+## 04 — When a unit is destroyed (D53)
+"Don't explode" was meant as "do no blast damage"; the units are still
+seen to blow up. Replace "The other seven units don't explode. They're
+destroyed with a debris effect." with:
+
+> The other seven units don't explode: their destruction does no damage
+> around them. They're still shown being destroyed, with an explosion
+> and debris, like any other loss.
+
+## 02 — Landforms: water the corners don't describe (D55)
+Channels and ponds lie in tiles whose corners are all Ground, and three
+points of land have the same corners as an outside corner. After
+"A tile's shape follows from its four corners." add:
+
+> Water also follows the edges: a map records which tile edges a
+> channel crosses, at the edge's middle, and which tiles hold a pond.
+> Where water crosses the edges between a tile's land corners, the land
+> splits into separate points.
+
+## 12 — The lobby: the same name twice (D56)
+The spec doesn't say what happens when two players in one game choose
+the same name. After "Players choose a name before they enter." add:
+
+> Two players in one game never share a name: if someone joins with a
+> name already there, it's shown with a number, as "Player 2", in that
+> game.

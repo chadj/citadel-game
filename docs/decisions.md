@@ -264,28 +264,48 @@ on 2026-10-25. Exact numbers chosen during tuning go in
   The square of the launch speed grows evenly with the power, so the
   distance grows about evenly too.
 
-## D23. How the terrain is built from tiles
-- **Date:** 2026-10-25
-- **Spec:** 02 Terrain, Levels, Slopes, Water
+## D23. How the terrain is built from corners
+- **Date:** 2026-10-25; revised 2026-10-26 for Landforms (D55)
+- **Spec:** 02 Terrain, Levels, Slopes, Water, Landforms
 - **Question:** The spec gives levels per tile and slopes about 40 px
   wide. Where do the slopes lie, and how are corners and shores shaped?
-- **Decision:**
-  - Each tile has one level. Raised tiles are flat on top all over.
-  - A raised level's slope lies just outside its tiles, running down
-    across the lower neighbor, 40 px wide straight across. Distance to
-    the raised tiles is the larger of the east-west and north-south
-    gaps, so slopes are the same width whichever way they face, and
-    wider where crossed at a corner (spec 02).
-  - A Mountain's slope runs across the Plateau around it, which leaves
-    a 20 px Plateau ledge per tile before the Plateau's own slope.
-  - The climb is linear plus rocky bumps up to 2 px, from smooth noise
-    on a 6 px grid. The bumps fade out at both edges of the slope.
-  - The shore is a 15 px strip of slope at altitude 0 on the Ground
-    beside water. Water tiles are water all over, so a Pontoon's tile
-    (D4) is always fully water.
-  - Neighboring tiles, corners included, may differ by at most one
-    level: Ground never touches a Mountain, and water never touches a
-    Plateau.
+- **Decision** (`src/rules/terrain/terrain.js`):
+  - **Corners carry the levels.** Each point where four tiles meet
+    sits on one level; a tile's shape follows from its four corners.
+    A tile mixes at most two neighboring levels: never three, never
+    Ground with Mountain, never water with Plateau.
+  - **Cliff pieces.** For each raised level (Plateau, and Mountain on
+    top of it), the high ground in a tile is a convex piece whose
+    sides run along the grid or at 45°: the top of the cliff crosses
+    each tile edge 3 px (`CLIFF_INSET`) in from its high corner. So one
+    high corner gives a small triangle (outside corner), two along a
+    side a strip (straight edge), three the tile less a triangle cut
+    corner to corner (inside corner), two opposite two triangles
+    (saddle), four the whole tile (flat). All 16 combinations exist in
+    all four facings. Runs of corners stepping across the grid make
+    45° cliffs.
+  - **Slopes.** The slope runs down from the high ground for 40 px,
+    measured as the true (Euclidean) distance to it, computed exactly
+    in whole numbers. So it's the same width whichever way it faces,
+    rounds outside corners, and flows from one piece into the next with
+    no step or gap. Crossed at an angle, it's wider (spec 02, Slopes).
+    With the inset this small, a slope never reaches a tile with no
+    high corner, so there's always Ground between a cliff and water.
+  - **A Mountain's slope** runs down onto the Plateau around it.
+  - **The climb** is linear plus rocky bumps up to 2 px, from smooth
+    noise on a 6 px grid. The bumps fade out at both edges of the slope.
+  - **Water** lies only in tiles with no raised corner, and never
+    leaves its own tile. Lakes: the water corners blended across the
+    tile, so straight shores, outside corners (water in one corner),
+    points of land (land in one, two or three corners, opposite corners
+    included, small and rounded). Channels: 30 px wide (`CHANNEL_HALF`
+    15 px), running from the middle of the tile to the middle of each
+    edge they cross, so straight runs, bends, T-junctions, crossings and
+    dead ends (a channel's end is rounded at the tile's middle). Ponds:
+    round, 28 px across, in the middle of a tile. Every water's edge is
+    a 15 px shore slope at altitude 0. A channel stays inside the
+    tiles it crosses, so one Pontoon (D4), which fills its tile, bridges
+    it.
 
 ## D24. Planet heights
 - **Date:** 2026-10-25
@@ -337,19 +357,32 @@ on 2026-10-25. Exact numbers chosen during tuning go in
   `node tools/calibrate.js` prints this table from the current values.
 
 ## D26. The map format
-- **Date:** 2026-10-25
+- **Date:** 2026-10-25; revised 2026-10-26 for Landforms (D55)
 - **Spec:** 02 (how maps are stored is up to the implementation)
 - **Question:** How are maps stored?
-- **Decision:** As plain data: a name, a suggested player count, a
-  planet, one string of tile characters per row (`~` Water, `.`
-  Ground, `+` Plateau, `^` Mountain), and the vents' centers in pixels
-  with a size of large, medium or small (110, 80 and 45 px across).
+- **Decision** (`src/rules/terrain/map.js`): as plain data:
+  - a name, a suggested player count and a planet;
+  - `corners`: one string per row of corners, north first (`~` Water,
+    `.` Ground, `+` Plateau, `^` Mountain). Corner (x, y) is the
+    north-west corner of tile (x, y); the map wraps, so there are as
+    many corners as tiles;
+  - `water` (optional): one string per row of tiles, one character
+    each: `.` for none, or a digit adding up 1 (a channel crosses the
+    tile's north edge), 2 (its west edge) and 4 (a pond). Each edge
+    belongs to one tile, so the tiles on both sides agree;
+  - `craters` (optional): painted craters, centers and radii in pixels;
+  - the vents' centers in pixels with a size of large, medium or small
+    (110, 80 and 45 px across).
+
   Start positions are listed in groups for each player count and team
   layout (D16), in pixels. Loading a map checks it and lists every
-  problem found.
+  problem found, including a tile with three levels, Ground with
+  Mountain, or water with a cliff.
   - A game's setup holds the map data without the groups, plus
     `positions`: every start position the map offers, which anyone can
     know, without which player got which.
+  - Tests and tools can sketch a map tile by tile; each corner then
+    takes the highest level of its four tiles.
 
 ## D27. State hashing
 - **Date:** 2026-10-25
@@ -555,7 +588,13 @@ on 2026-10-25. Exact numbers chosen during tuning go in
   - **Surge:** 4 ticks a node (7.5 nodes a second). After passing n
     nodes, 3 × (50 − n) / 50 is left, rounded down to a tenth: 1.8 after
     20. A Surge that hits a node counts that node as the first passed,
-    both ways. It stops if the next node has burned away.
+    both ways. It stops if the next node has burned away. A Surge that
+    strikes a unit passes the first node of the conduit into it at
+    once, before the unit takes its 3 (user's choice, 2026-10-26). So if
+    that destroys the unit, the damage is already ahead of the burn
+    (4 ticks a node against the burn's 6) and always reaches the far
+    end. Past the last node it hits the unit there even if the conduit
+    behind it has burned away since. Rules version 2.
   - **Worm:** a Worm never infects the same unit twice. So two units it
     infected together, with a conduit between them, don't pass it back
     and forth. It spreads only along conduits that have landed and
@@ -641,6 +680,10 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     ring, the heading is one round mark in the player's color, 34 px
     out from the ring (user's choice, 2026-10-25: a line of marks
     pointed too precisely).
+  - **The build menu** lists each level's items in three columns. At
+    level 1 the weapons (Shell, Scatter Shell, Repair Pod) are the top
+    row and the buildings (Interceptor, Spire, Pontoon) the bottom row
+    (user's choice, 2026-10-26).
   - **The conduit marker** is a pulsing yellow ring around the
     heading's mark, not marks on the conduit itself (user's choice,
     2026-10-25: marks along the conduit also formed a line). Proposed
@@ -720,9 +763,9 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     fog too (spec 04, Damage): more smoke, and sparks, when it's badly
     damaged (40% of its armor or less). Over the fog the smoke is pale
     and larger, so a damaged enemy can be spotted from afar.
-  - **Factions** are named Meridian, Ostrevan, Deepbore and Ruuk
-    (chosen by the user, replacing earlier names that were too close
-    to real names), and differ in the outline of their units. The six
+  - **Factions** are named Ion Mercantile, Rivet & Ash, Toroid Drift
+    and Crater Born (chosen by the user, 2026-10-26, replacing
+    Meridian, Ostrevan, Deepbore and Ruuk), and differ in the outline of their units. The six
     colors are red, blue, green, yellow, violet and orange.
 
 ## D41. The hand-drawn maps — Ours
@@ -732,7 +775,15 @@ on 2026-10-25. Exact numbers chosen during tuning go in
   tundra) and Shallow Crossing (40 tiles, desert), each with four
   corner starts grouped for every player count and team layout as D16
   describes. They stay in the set alongside the generated ones (D47).
-
+- **Revised 2026-10-26 (D55):** both redrawn on corners, each mirrored
+  into four matching quarters. Quiet Basin: a diamond of Plateau with
+  a Mountain core in the middle and smaller Plateau diamonds east and
+  west, all with 45° cliffs; a lake north and south, each with a point
+  of land; from each lake channels run east and west, bend away to dead
+  ends and branch (T-junctions); a pond and painted craters in each
+  quarter. Shallow Crossing: seas in the map's corners, a middle lake
+  with a small island, channels into it that cross north-south ones,
+  mesas north and south, Plateaus east and west, and painted craters.
 ## D42. The chat key while typing
 - **Date:** 2026-10-25
 - **Spec:** 10 Chat, Keys
@@ -848,14 +899,33 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     Raised land is a share of the land; Mountains are 10% to 45% of
     it, rising with the step, and rougher steps add finer hills. More
     energy also means larger vents.
-  - **How it builds a map:** two fields of smooth noise, one for water
-    and one for height, cut at the shares above; lone raised tiles are
-    smoothed away; then any tile more than one level above a neighbor
-    comes down (D23). The Islands step uses finer water noise, so the
-    land breaks up.
-  - **Mirrored:** a quarter is built, with its edges treated as
-    mirrors, then mirrored into the other three, with its start and
-    vents. Starts lie near the middle of each quarter.
+  - **How it builds a map** (revised 2026-10-26 for Landforms, D55):
+    two fields of smooth noise, one for water and one for height, cut
+    at the shares above, set each corner's level, so cliffs and shores
+    step across the grid at 45° as freely as they run along it. Every
+    raised corner and every water corner must belong to at least one
+    whole tile of its level, so each hill has a flat top and each lake
+    some open water (no knife-edge ridges or specks); a corner of land
+    with water all round goes under. Then any corner more than one level
+    above a neighbor comes down (D23). The Islands step uses finer water
+    noise, so the land breaks up.
+  - **Channels** (by Water step 0 to 4: 0, 3, 5, 7, 5 per 1,024 tiles)
+    start in dry tiles, half of them beside a lake, and wander 4 to 12
+    tiles with straight runs and bends that turn back and forth. A
+    channel ends where it reaches raised land (a dead end), opens into a
+    lake, or meets another channel (a T-junction), though it may carry
+    on across it (a crossing); now and then a short branch leaves it.
+    It never runs alongside another channel, and one shorter than three
+    edges is taken back. **Ponds** (0, 2, 3, 3, 2 per 1,024 tiles) go in
+    flat Ground tiles with no water beside them. Starts and the tiles
+    near them get none.
+  - **Painted craters** (by Terrain step: 1, 2, 2, 3, 4 per 1,024
+    tiles, at least one where there's room), 80 to 160 px across, on
+    flat ground of one level 3 tiles square, clear of starts and vents.
+  - **Mirrored:** a quarter of corners is built, then mirrored into the
+    other three (corner x to n − x, tile x to n − 1 − x), with its
+    start, channels, ponds, vents and craters. Starts lie near the
+    middle of each quarter.
   - **Grown:** four starts as far apart as possible, on dry, flat
     Ground where there is any; teams of two get the closer pairs
     (D16). Each start first gets a vent within about 8 tiles, if
@@ -893,7 +963,9 @@ on 2026-10-25. Exact numbers chosen during tuning go in
   | Scattered Isles | 56 | Tundra | Mirrored | 3, 2, 4 |
   | Great Erg | 64 | Desert | Mirrored | 2, 3, 0 |
   | Floe Field | 64 | Glacier | Grown | 3, 2, 4 |
-
+- **Revised 2026-10-26 (D55):** the ten generated maps were rebuilt
+  from the same recipes with the corner-based generator; the two drawn
+  maps were redrawn (D41).
 ## D48. Computers cross water — Ours
 - **Date:** 2026-10-25
 - **Spec:** 09 Planning ahead (water needs a Pontoon first),
@@ -964,12 +1036,31 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     each with an id `aide.<event>.<n>`. It waits 0.7 s before speaking
     and pauses 0.45 s after a line. Up to 3 items wait; a waiting item
     for the same event is replaced by the newer one.
-  - **Its voice** is the browser's own speech, at the Voice volume. Each
-    faction has its own pitch and speed, and its own system voice
-    where the system has several English ones. A recording can stand
+  - **"Your shot hit an enemy"** counts only units the shot's
+    explosions damaged or destroyed. A building taken down because the
+    burn reached it along its conduit doesn't count, though the shot's
+    player gets the credit for it (user's report, 2026-10-26: the aide
+    announced each building in a chain as a fresh hit). Losing one's
+    own units that way off screen still counts as a loss.
+  - **Its voice** is the browser's own speech, at the Voice volume, at
+    the voice's own pitch and a rate of 1.05. Each faction has its own
+    system voice, chosen by name from a list of US English voices for
+    that faction (user's choice, 2026-10-26): two women's voices, Ion
+    Mercantile (Samantha on a Mac or iPhone; Ava or Allison where
+    installed) and Toroid Drift (Shelley; Zoe where installed), and two
+    men's, Rivet & Ash (Reed; Alex or Tom where installed) and Crater
+    Born (Eddy; Evan or Nathan where installed). The lists cover macOS
+    and iOS, Chrome's own voices and Windows. Where there aren't enough
+    US voices of the right kind (Windows has one woman's, Chrome's own
+    voices one US voice), a British or other English voice of the same
+    kind stands in. Novelty voices (singing, bleating and the like) are
+    never used, and no two factions share a voice where there are
+    enough. Where no listed voice is there (as on Android, whose voice
+    names don't say who speaks), a faction takes the next US English
+    voice not taken, then any English one. A recording can stand
     in for any line: `AIDE_FILES` in `sounds.js`, keyed by
-    `aide.<faction>.<event>.<n>` (factions `meridian`, `ostrevan`,
-    `deepbore`, `ruuk`).
+    `aide.<faction>.<event>.<n>` (factions `ion-mercantile`,
+    `rivet-and-ash`, `toroid-drift`, `crater-born`).
   - **Hot seat:** the aide is the player's at the screen; it starts
     afresh when the screen changes hands. Watching a replay, there is
     no aide.
@@ -1066,3 +1157,190 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     computers; "needed" counts the seats in use.
   - **Chat** goes through the server, which sends each message only to
     the players who get it.
+
+## D53. Destroyed units that don't explode still show an explosion
+- **Date:** 2026-10-26
+- **Spec:** 04 When a unit is destroyed ("The other seven units don't
+  explode. They're destroyed with a debris effect."); 08 Some things
+  show through the fog
+- **Question:** Does "don't explode" mean no explosion is shown?
+- **Answer (user):** No. It means their destruction does no damage
+  around them. Every destroyed unit still shows an explosion, so other
+  players can see each loss, through the fog too. This matters most
+  when a burning conduit takes down a chain of buildings.
+- **Decision:** a unit destroyed without a blast of its own shows an
+  explosion sized to it (a radius of 1.5 times its footprint, at least
+  16 px), with debris thrown up and out, and smoke. Burning conduit
+  nodes glow in the fog. A building whose landing fails, in the air or
+  where it comes down, shows a small explosion (22 px, 1.2 s), with debris
+  (user's choice). Units salvaged or sunk show debris only. Proposed spec wording is in
+  docs/spec-changes.md.
+
+## D54. Conduit lights — Ours
+- **Date:** 2026-10-26
+- **Spec:** 05 Conduit lights
+- **Decision:**
+  - A light runs along each conduit toward its launcher, and so, from
+    conduit to conduit, toward the Citadel. It moves one node (15 px)
+    every 140 ms, about 107 px a second (the user found 70 ms too
+    fast). Lights are 8 nodes apart, about
+    120 px.
+  - Each light is a brighter, larger node with a soft glow, and a tail
+    fading over the 3 nodes behind it, so the direction of flow shows
+    at a glance.
+  - Every conduit runs off the screen's one clock, with nodes counted
+    from the launcher, so all conduits pulse in step.
+  - On the conduit into a disabled unit, lights run 5 times slower
+    (about 21 px a second). Those pulse in step with each other.
+  - Burning and falling nodes show no lights. Nodes hidden by the fog
+    aren't drawn, so neither are their lights.
+  - These were missed when conduits were first built (D31 covered
+    everything in spec 05 but the lights), and added when the user
+    noticed.
+
+
+## D55. Landforms: gaps in the terrain, maps and generator
+- **Date:** 2026-10-26
+- **Spec:** 02 Landforms (new), Slopes, Water, Pontoons, Generated maps
+- **Questions (answered by the user, 2026-10-26):**
+  - *Channels and ponds* run through tiles whose four corners are all
+    Ground, so "a tile's shape follows from its four corners" can't
+    describe them. **Answer:** corners set the levels, cliffs and lakes;
+    the map also records which tile edges water crosses (a channel
+    through the edge's middle) and which tiles hold a pond.
+  - *Points of land in three corners* and *an outside corner* both
+    have three land corners and one water corner. **Answer:** water
+    crossing the edges between the land corners splits the land into
+    small rounded points; otherwise the land is joined and the tile is
+    an outside corner.
+  - Proposed wording for both is in docs/spec-changes.md.
+- **Gaps** (the current model is D23, D26 and D46):
+  1. **Levels sit on tiles, not corners.** Each tile has one level
+     (D23, D26). The spec now puts a level on each corner, where four
+     tiles meet, and shapes each tile from its four corners.
+  2. **No tile mixes two levels.** A raised tile is flat all over and
+     its slope lies in the lower neighbor. The mixing rule (at most two
+     levels per tile; never three; never Ground with Mountain) is only
+     enforced as "neighbors differ by at most one level".
+  3. **Water and cliffs.** A Ground tile between a Plateau and water
+     can hold both a cliff's slope and a shore. The new rule needs
+     Ground between them inside the tiles themselves.
+  4. **Cliff pieces.** Only square blocks exist. There are no outside
+     corner, inside corner or saddle pieces as the spec describes them.
+     Outside corners are square, since distance is measured as the
+     larger of the east-west and north-south gaps.
+  5. **No diagonal cliffs.** Every cliff runs north-south or east-west,
+     so landforms are all squares and rectangles.
+  6. **Joins.** Slopes join without steps, but only along straight
+     edges and square corners. Nothing turns into a 45° run.
+  7. **Water takes one form:** whole tiles. There are no half-tile
+     channels (straight, bend, T, crossing, dead end), no ponds, no
+     straight shores or outside corners inside a tile, no points of
+     land, and no channels opening into lakes.
+  8. **Variety.** Plain ground and open water have one look each (a
+     faint ripple on water). There are no alternative looks for
+     pieces, and maps can't carry painted craters.
+  9. **The map format (D26)** stores one level per tile. It needs
+     corners, the water shapes that corners can't express (see the
+     questions), and painted craters.
+  10. **The generator (D46)** works on tile levels: its cliffs step in
+      squares, and it makes no channels, ponds or points of land.
+  11. **The built-in maps** (D41, D47) are tile data: the ten generated
+      ones must be regenerated and the two hand-drawn ones redrawn.
+  12. **Tests.** The terrain tests and the Appendix A sketches describe
+      tile levels.
+  13. **Drawing** is per pixel from the rules' terrain, so it follows any
+      new shapes. It needs the looks (gap 8) and painted craters.
+  14. **Computers** aim a Pontoon at the center of the first water tile
+      they find. On a tile that's only partly water the center may be
+      dry, and a Pontoon must land on water.
+  15. **Rules version.** Terrain changes play, so the rules version
+      goes up (old replays won't play back).
+- **How each gap was closed (2026-10-26):**
+  - 1–6: corner levels and cliff pieces with exact Euclidean slopes
+    (D23); the map checks reject three levels in a tile, Ground with
+    Mountain, and water with a cliff (D26).
+  - 7: lakes from water corners, channels and ponds from water marks
+    (D23, D26).
+  - 8, 13: each level's plain surface, and open water, has three looks
+    (the color itself, a darker, warmer one with grain, a lighter one
+    with streaks), blended by smooth noise on 120 px and 48 px cells,
+    which don't line up with the tiles. Painted craters are drawn into
+    the ground as a bowl shadowed on its north-west side, with a lighter
+    rim; they're marks only, like explosion craters. *Choice:* the
+    optional alternative looks for common cliff pieces aren't done;
+    slopes keep their rocky texture from the bumps.
+  - 9: the format in D26.
+  - 10: the generator in D46.
+  - 11: D41 and D47.
+  - 12: the tests now sketch on corners where it matters, plus new
+    Landforms tests (`test/rules/landforms.test.js`).
+  - 14: computers aim a Pontoon at the point of the tile with the most
+    water around it (on a 15 px grid), to allow for their aim error;
+    they leave tiles holding only a pond alone, since a pond leads
+    nowhere. Their check for water on a line samples every 15 px, as
+    closely as conduit nodes settle, so ponds and channels aren't
+    stepped over.
+    A Pontoon is also weighed by how likely it is to land (user's
+    choice, 2026-10-26): the computer flies 25 shots over an even spread
+    of its own aim error (heading and power each at −1, −½, 0, ½ and 1
+    of the most it strays), and the share that come down on free water
+    is the Pontoon's chance. The crossing counts that often; the rest of
+    the time it has spent a Pontoon for nothing. So computers that stray
+    favor wide water over a channel; the hardest, which never strays, is
+    unchanged. The Pontoon isn't replayed with error again among the
+    best moves, since its chance already counts.
+  - 15: the rules version is 3.
+
+## D56. Telling players apart online
+- **Date:** 2026-10-26
+- **Spec:** 12 The lobby, Rejoining; 10 Options
+- **Question (answered by the user, 2026-10-26):** two players in one
+  online game can choose the same name (both kept the default
+  "Player"), so "Your turn, Player" and "Waiting for Player" read the
+  same and no one can tell whose turn it is. The spec doesn't say what
+  happens. **Answer:** the server numbers repeats.
+- **Decision:**
+  - When a player joins a game with a name already in it, the server
+    gives them the lowest free number, as "Player 2", for that game
+    only: in the seats, the setup's chat, and the game itself. Their
+    chosen name is unchanged.
+  - **A duplicated tab doesn't take the seat.** A tab keeps its token
+    for taking back a seat (D52) per tab, so a reload takes the seat
+    back; but duplicating a tab copies it. So before using a kept
+    token, a tab asks the other open tabs of the same browser (a
+    broadcast channel) whether one already holds it, and waits 200 ms;
+    if one does, it starts afresh as a new player.
+  - **A tab in the background misses no moves.** A browser runs no
+    frames in a hidden tab, so a game's screen opens only when the tab
+    is shown. Moves that arrive between the game's start and its
+    screen opening wait on the connection for it; before, they were
+    lost, and that tab stayed a move behind, waiting for a player who
+    was waiting for it.
+
+## D57. The order of play doesn't show who has passed
+- **Date:** 2026-10-26
+- **Spec:** 03 The order of play (its look is up to us)
+- **Decision (asked for by the user):** a player's marker looks the
+  same whether they're still in the round or have passed or run out
+  of energy. Showing it would tell the others too much. Only the
+  marks the spec asks for change it: knocked out, and disconnected.
+
+## D58. Computers bridge water only where it's in the way
+- **Date:** 2026-10-26
+- **Spec:** 09 Planning ahead (water needs a Pontoon first), What
+  things are worth; 02 Water, Landforms
+- **Problem (reported by the user):** computers laid many Pontoons
+  over channels that land already goes round. In 12-round games
+  between computers, most of the hardest computer's Pontoons (10 to
+  18 a game) crossed water with the same land on both sides.
+- **Decision (ours: how computers weigh moves is up to us):**
+  - A computer works out once a map which stretches of land join up,
+    and how far it is round by land from each vent and start.
+  - A vent or start over the water from a launcher counts as far away
+    as the way round by land. Only where land doesn't get there does
+    it count for little, as before.
+  - A crossing's plan counts only what an Outpost past the water adds
+    over the best Outpost this side of it.
+  - And only where the way round by land to the far shore is more
+    than twice as long as straight across, or there's none.

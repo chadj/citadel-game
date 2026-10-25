@@ -13,8 +13,15 @@
 // Energy, Terrain and Water each have five steps, 0 to 4. A map comes
 // out as map data (rules/terrain/map.js) plus start positions for 2, 3
 // and 4 players and every team layout (decision D16).
+//
+// It works on corner levels (spec 02, Landforms; decision D55): noise
+// sets each corner's level, so cliffs and shores step across the grid
+// at 45° as freely as they run along it. Channels wander from tile to
+// tile with straight runs, bends, branches and dead ends, often out of
+// a lake; ponds sit in single tiles; and craters are painted on flat
+// ground.
 
-import { MAP_SIZES } from '../rules/constants.js';
+import { MAP_SIZES, WATER, GROUND } from '../rules/constants.js';
 import { PLANETS } from '../rules/terrain/planets.js';
 
 export const STYLES = Object.freeze(['mirror', 'grown']);
@@ -31,7 +38,12 @@ const ROUGH = [0.15, 0.3, 0.45, 0.6, 0.75]; // how much the finer noise counts
 const VENTS_PER_1024 = [4, 7, 11, 15, 22]; // vents per 1,024 tiles, by step
 const LARGE_SHARE = [0.05, 0.15, 0.25, 0.35, 0.45];
 const SMALL_SHARE = [0.6, 0.45, 0.35, 0.25, 0.15];
+const CHANNELS_PER_1024 = [0, 3, 5, 7, 5]; // channels per 1,024 tiles, by water step
+const PONDS_PER_1024 = [0, 2, 3, 3, 2];
+const CRATERS_PER_1024 = [1, 2, 2, 3, 4]; // painted craters, by terrain step
 const CHARS = ['~', '.', '+', '^'];
+const DX = [0, 1, 0, -1]; // north, east, south, west
+const DY = [-1, 0, 1, 0];
 
 // A random number source from a seed: whole numbers, the same on every
 // machine.
@@ -85,7 +97,9 @@ export function generateMap(settings, seed, name = null) {
     name: name ?? `Generated ${seed >>> 0}`,
     players: n <= 40 ? 2 : n <= 52 ? 3 : 4,
     planet: s.planet,
-    rows: map.rows,
+    corners: map.corners,
+    ...(map.water && { water: map.water }),
+    ...(map.craters.length > 0 && { craters: map.craters }),
     vents: map.vents,
     starts: map.starts,
     settings: s,
@@ -93,37 +107,85 @@ export function generateMap(settings, seed, name = null) {
   };
 }
 
-// A grid of tile levels, w by h, with wrapping neighbors.
-class Grid {
-  constructor(w, h, wrapAround) {
-    this.w = w;
-    this.h = h;
-    this.wrap = wrapAround;
-    this.v = new Uint8Array(w * h);
+// The land: a level at each corner, n by n, wrapping (corner (x, y) is
+// the north-west corner of tile (x, y)), and the water marks that
+// corners can't express: channels across tiles' north and west edges,
+// and ponds.
+class Land {
+  constructor(n) {
+    this.n = n;
+    this.c = new Uint8Array(n * n);
+    this.north = new Uint8Array(n * n);
+    this.west = new Uint8Array(n * n);
+    this.pond = new Uint8Array(n * n);
+  }
+
+  i(x, y) {
+    const n = this.n;
+    return (((y % n) + n) % n) * n + (((x % n) + n) % n);
   }
 
   at(x, y) {
-    if (this.wrap) return this.v[(((y % this.h) + this.h) % this.h) * this.w + (((x % this.w) + this.w) % this.w)];
-    // Without wrapping (a quarter), the edges reflect, as the mirroring
-    // will make them.
-    const cx = x < 0 ? -x - 1 : x >= this.w ? 2 * this.w - x - 1 : x;
-    const cy = y < 0 ? -y - 1 : y >= this.h ? 2 * this.h - y - 1 : y;
-    return this.v[cy * this.w + cx];
+    return this.c[this.i(x, y)];
   }
 
   set(x, y, level) {
-    const w = this.w;
-    const h = this.h;
-    this.v[(((y % h) + h) % h) * w + (((x % w) + w) % w)] = level;
+    this.c[this.i(x, y)] = level;
   }
 
-  // Levels may differ from their neighbors, corners included, by one at
-  // most (decision D23): a tile too far above a neighbor comes down.
+  // A tile's four corners.
+  four(x, y) {
+    return [this.at(x, y), this.at(x + 1, y), this.at(x + 1, y + 1), this.at(x, y + 1)];
+  }
+
+  // Whether a tile may hold water: none of its corners is raised.
+  dry(x, y) {
+    return Math.max(...this.four(x, y)) <= GROUND;
+  }
+
+  // Whether a tile has open water in a corner.
+  lake(x, y) {
+    return Math.min(...this.four(x, y)) === WATER;
+  }
+
+  // The number of channel arms in a tile.
+  arms(x, y) {
+    return this.north[this.i(x, y)] + this.west[this.i(x, y)] + this.north[this.i(x, y + 1)] + this.west[this.i(x + 1, y)];
+  }
+
+  wet(x, y) {
+    return this.lake(x, y) || this.arms(x, y) > 0 || this.pond[this.i(x, y)] === 1;
+  }
+
+  // Marks the edge a channel crosses, leaving a tile in a direction.
+  mark(x, y, dir) {
+    if (dir === 0) this.north[this.i(x, y)] = 1;
+    else if (dir === 2) this.north[this.i(x, y + 1)] = 1;
+    else if (dir === 3) this.west[this.i(x, y)] = 1;
+    else this.west[this.i(x + 1, y)] = 1;
+  }
+
+  // Whether a tile is flat all over at one dry level.
+  flat(x, y, level) {
+    return level !== WATER && this.four(x, y).every((l) => l === level) && !(level === GROUND && this.wet(x, y));
+  }
+
+  // Whether the (2k+1)-square block of tiles around a tile is flat at
+  // one dry level.
+  flatBlock(x, y, k) {
+    const level = this.at(x, y);
+    for (let dy = -k; dy <= k; dy++) for (let dx = -k; dx <= k; dx++) if (!this.flat(x + dx, y + dy, level)) return false;
+    return true;
+  }
+
+  // A tile mixes two neighboring levels at most (spec 02, Landforms): a
+  // corner too far above a corner of the same tile comes down.
   settle() {
+    const n = this.n;
     for (let changed = true; changed;) {
       changed = false;
-      for (let y = 0; y < this.h; y++) {
-        for (let x = 0; x < this.w; x++) {
+      for (let y = 0; y < n; y++) {
+        for (let x = 0; x < n; x++) {
           let low = 3;
           for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) low = Math.min(low, this.at(x + dx, y + dy));
           if (this.at(x, y) > low + 1) {
@@ -135,12 +197,98 @@ class Grid {
     }
   }
 
-  // Whether the (2k+1)-square block around a tile is one dry level.
-  flatBlock(x, y, k) {
-    const level = this.at(x, y);
-    if (level === 0) return false;
-    for (let dy = -k; dy <= k; dy++) for (let dx = -k; dx <= k; dx++) if (this.at(x + dx, y + dy) !== level) return false;
-    return true;
+  // Every raised corner, and every water corner, belongs to at least one
+  // whole tile of its level: so each hill has a flat top and each lake
+  // some open water, with no knife-edge ridges or specks. Others become
+  // like their neighbors. A corner of land with water all round goes
+  // under too. Each pass reads from a copy, so the result
+  // doesn't depend on the order, and mirrored land stays mirrored.
+  prune() {
+    const n = this.n;
+    for (let changed = true; changed;) {
+      changed = false;
+      const was = this.c.slice();
+      const at = (x, y) => was[(((y % n) + n) % n) * n + (((x % n) + n) % n)];
+      const like = (level, other) => (level === WATER ? other === WATER : other >= level);
+      const whole = (tx, ty, level) => like(level, at(tx, ty)) && like(level, at(tx + 1, ty))
+        && like(level, at(tx + 1, ty + 1)) && like(level, at(tx, ty + 1));
+      for (let y = 0; y < n; y++) {
+        for (let x = 0; x < n; x++) {
+          const level = at(x, y);
+          if (level === GROUND) {
+            // A speck of land with water all round goes under.
+            let water = 0;
+            for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && at(x + dx, y + dy) === WATER) water++;
+            if (water === 8) {
+              this.set(x, y, WATER);
+              changed = true;
+            }
+            continue;
+          }
+          if (whole(x - 1, y - 1, level) || whole(x, y - 1, level) || whole(x - 1, y, level) || whole(x, y, level)) continue;
+          this.set(x, y, level === WATER ? GROUND : level - 1);
+          changed = true;
+        }
+      }
+    }
+    this.settle();
+  }
+
+  // Water never shares a tile with a cliff: marks go from any tile with
+  // a raised corner.
+  sanitize() {
+    for (let y = 0; y < this.n; y++) {
+      for (let x = 0; x < this.n; x++) {
+        if (this.dry(x, y)) continue;
+        this.north[this.i(x, y)] = 0;
+        this.west[this.i(x, y)] = 0;
+        this.north[this.i(x, y + 1)] = 0;
+        this.west[this.i(x + 1, y)] = 0;
+        this.pond[this.i(x, y)] = 0;
+      }
+    }
+  }
+
+  // Makes the (2k+1)-square block of tiles around a tile flat Ground,
+  // with no water in it or touching it.
+  flatten(x, y, k = 2) {
+    for (let dy = -k; dy <= k + 1; dy++) for (let dx = -k; dx <= k + 1; dx++) this.set(x + dx, y + dy, GROUND);
+    for (let dy = -k - 1; dy <= k + 1; dy++) {
+      for (let dx = -k - 1; dx <= k + 1; dx++) {
+        const inside = Math.abs(dx) <= k && Math.abs(dy) <= k;
+        if (inside || dy === -k - 1) this.north[this.i(x + dx, y + dy + 1)] = 0;
+        if (inside || dx === -k - 1) this.west[this.i(x + dx + 1, y + dy)] = 0;
+        if (inside) {
+          this.north[this.i(x + dx, y + dy)] = 0;
+          this.west[this.i(x + dx, y + dy)] = 0;
+        }
+        this.pond[this.i(x + dx, y + dy)] = 0;
+      }
+    }
+    this.settle();
+  }
+
+  // Makes the land the same in all four quarters, mirrored, from the
+  // quarter of tiles 0 to n/2 - 1 each way: corners mirror x to n - x,
+  // tiles x to n - 1 - x.
+  mirror() {
+    const n = this.n;
+    const q = n / 2;
+    const mc = (v) => (v <= q ? v : n - v);
+    const c = this.c.slice();
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) this.c[y * n + x] = c[mc(y) * n + mc(x)];
+    // The marks: whatever is marked anywhere is marked in all its images.
+    const north = this.north.slice();
+    const west = this.west.slice();
+    const pond = this.pond.slice();
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const k = y * n + x;
+        if (north[k]) for (const [ix, iy] of [[x, y], [n - 1 - x, y], [x, n - y], [n - 1 - x, n - y]]) this.north[this.i(ix, iy)] = 1;
+        if (west[k]) for (const [ix, iy] of [[x, y], [n - x, y], [x, n - 1 - y], [n - x, n - 1 - y]]) this.west[this.i(ix, iy)] = 1;
+        if (pond[k]) for (const [ix, iy] of [[x, y], [n - 1 - x, y], [x, n - 1 - y], [n - 1 - x, n - 1 - y]]) this.pond[this.i(ix, iy)] = 1;
+      }
+    }
   }
 }
 
@@ -191,9 +339,8 @@ function quantile(field, share, mask = null) {
   return vals[Math.min(vals.length - 1, Math.floor(share * vals.length))];
 }
 
-// Lays out the levels of an area from noise.
-function levels(grid, s, r, wrapAround) {
-  const { w, h } = grid;
+// The levels of an area from noise, w by h: 0 water to 3 Mountain.
+function levels(w, h, s, r, wrapAround) {
   const base = Math.max(2, Math.round(w / 10));
   const wet = noise(w, h, r, { cells: s.water >= 4 ? base * 2 : base, rough: 0.45, period: wrapAround });
   const high = noise(w, h, r, { cells: base, rough: ROUGH[s.terrain], period: wrapAround });
@@ -202,26 +349,9 @@ function levels(grid, s, r, wrapAround) {
   for (let k = 0; k < land.length; k++) land[k] = wet[k] >= seaLevel || WATER_SHARE[s.water] === 0 ? 1 : 0;
   const raised = quantile(high, 1 - RAISED_SHARE[s.terrain], land);
   const peak = quantile(high, 1 - RAISED_SHARE[s.terrain] * MOUNTAIN_SHARE[s.terrain], land);
-  for (let k = 0; k < land.length; k++) {
-    grid.v[k] = !land[k] ? 0 : high[k] >= peak ? 3 : high[k] >= raised ? 2 : 1;
-  }
-  // Lone raised tiles are just noise: they come down.
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const level = grid.at(x, y);
-      if (level < 2) continue;
-      let alike = 0;
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && grid.at(x + dx, y + dy) >= level) alike += 1;
-      if (alike < 2) grid.set(x, y, level - 1);
-    }
-  }
-  grid.settle();
-}
-
-// Makes the (2k+1)-square block around a tile flat Ground.
-function flatten(grid, x, y, k = 2) {
-  for (let dy = -k; dy <= k; dy++) for (let dx = -k; dx <= k; dx++) grid.set(x + dx, y + dy, 1);
-  grid.settle();
+  const out = new Uint8Array(w * h);
+  for (let k = 0; k < out.length; k++) out[k] = !land[k] ? 0 : high[k] >= peak ? 3 : high[k] >= raised ? 2 : 1;
+  return out;
 }
 
 const center = (t) => t * TILE_PX + TILE_PX / 2;
@@ -245,17 +375,18 @@ function ventSizes(count, step, r) {
   return out;
 }
 
-// Places vents on flat tiles of the grid: a large vent needs a 5-tile
-// square of one level around it, the others a 3-tile square (D46).
-// `ok` filters candidate tiles. Returns tile positions with sizes.
-function placeVents(grid, sizes, r, ok, n, starts, placed = []) {
+// Places vents on flat tiles: a large vent needs a 5-tile square of one
+// level around it, the others a 3-tile square (D46). `ok` filters
+// candidate tiles. Returns tile positions with sizes.
+function placeVents(land, sizes, r, ok, starts, placed = []) {
+  const n = land.n;
   const out = [];
   for (const size of sizes) {
     const k = size === 'large' ? 2 : 1;
     const cands = [];
-    for (let y = 0; y < grid.h; y++) {
-      for (let x = 0; x < grid.w; x++) {
-        if (!ok(x, y) || !grid.flatBlock(x, y, k)) continue;
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        if (!ok(x, y) || !land.flatBlock(x, y, k)) continue;
         if (starts.some((st) => tileGap2(n, st, { x, y }) < 9)) continue;
         if ([...placed, ...out].some((v) => tileGap2(n, v, { x, y }) < 9)) continue;
         cands.push({ x, y });
@@ -263,6 +394,120 @@ function placeVents(grid, sizes, r, ok, n, starts, placed = []) {
     }
     if (cands.length === 0) continue;
     out.push({ ...cands[r.int(cands.length)], size });
+  }
+  return out;
+}
+
+// Channels: each starts in a dry tile, often beside a lake, and wanders
+// with straight runs and bends. It stops where it reaches raised land (a
+// dead end), opens into a lake, or meets another channel (a T-junction),
+// though it may carry on across it (a crossing); now and then a branch
+// leaves it (another T-junction). `ok` says which tiles it may start in
+// or enter: off them, it stops at the edge, where its mirror image will
+// meet it.
+function addChannels(land, count, r, ok) {
+  const n = land.n;
+  const shore = [];
+  const inland = [];
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      if (!ok(x, y) || !land.dry(x, y) || land.wet(x, y)) continue;
+      const byLake = [0, 1, 2, 3].some((d) => land.lake(x + DX[d], y + DY[d]));
+      (byLake ? shore : inland).push({ x, y });
+    }
+  }
+  // Whether a channel entering a tile would run alongside another: a
+  // tile beside it, across the way it's going, has water in it.
+  const alongside = (x, y, dir) => [1, 3].some((side) => {
+    const d = (dir + side) % 4;
+    return land.arms(x + DX[d], y + DY[d]) > 0;
+  });
+  const walk = (x, y, dir, length, branches) => {
+    let lastTurn = 0;
+    for (let step = 0; step < length; step++) {
+      // Bends turn back and forth, never round into a loop.
+      if (step > 0 && r.unit() < 0.25) {
+        const turn = lastTurn === 1 ? 3 : lastTurn === 3 ? 1 : r.int(2) ? 1 : 3;
+        dir = (dir + turn) % 4;
+        lastTurn = turn;
+      }
+      const nx = x + DX[dir];
+      const ny = y + DY[dir];
+      if (!land.dry(nx, ny)) return;
+      const met = land.arms(nx, ny) > 0;
+      if (!met && !land.lake(nx, ny) && alongside(nx, ny, dir)) return;
+      land.mark(x, y, dir);
+      if (!ok(nx, ny) || land.lake(nx, ny)) return;
+      if (met && r.unit() < 0.5) return;
+      if (branches > 0 && step > 0 && r.unit() < 0.15) {
+        const side = (dir + (r.int(2) ? 1 : 3)) % 4;
+        if (land.arms(x + DX[side], y + DY[side]) === 0) walk(x, y, side, 2 + r.int(4), branches - 1);
+      }
+      x = nx;
+      y = ny;
+    }
+  };
+  for (let k = 0; k < count; k++) {
+    const from = shore.length > 0 && (k % 2 === 0 || inland.length === 0) ? shore : inland;
+    if (from.length === 0) return;
+    const t = from[r.int(from.length)];
+    // Out of a lake, away from it; inland, any way.
+    const away = [0, 1, 2, 3].filter((d) => !land.lake(t.x + DX[d], t.y + DY[d]));
+    const dir = from === shore && away.length > 0 ? away[r.int(away.length)] : r.int(4);
+    // A channel shorter than three tiles' edges would be a stray dash:
+    // it's taken back.
+    const north = land.north.slice();
+    const west = land.west.slice();
+    walk(t.x, t.y, dir, 4 + r.int(9), 1);
+    let added = 0;
+    for (let i = 0; i < n * n; i++) added += land.north[i] - north[i] + land.west[i] - west[i];
+    if (added < 3) {
+      land.north.set(north);
+      land.west.set(west);
+    }
+  }
+}
+
+// Ponds: in flat Ground tiles with no water beside them.
+function addPonds(land, count, r, ok) {
+  const n = land.n;
+  for (let k = 0; k < count; k++) {
+    const cands = [];
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        if (!ok(x, y) || !land.flat(x, y, GROUND)) continue;
+        let near = false;
+        for (let dy = -1; dy <= 1 && !near; dy++) for (let dx = -1; dx <= 1 && !near; dx++) near = land.wet(x + dx, y + dy);
+        if (!near) cands.push({ x, y });
+      }
+    }
+    if (cands.length === 0) return;
+    const t = cands[r.int(cands.length)];
+    land.pond[land.i(t.x, t.y)] = 1;
+  }
+}
+
+// Painted craters, larger than a tile, on flat ground of any level and
+// clear of the starts and vents (spec 02, Landforms: Variety). In pixels.
+function placeCraters(land, count, r, ok, starts, vents) {
+  const n = land.n;
+  const out = [];
+  for (let k = 0; k < count; k++) {
+    const cands = [];
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        if (!ok(x, y) || !land.flatBlock(x, y, 1)) continue;
+        if ([...starts, ...vents, ...out.map((c) => c.tile)].some((t) => tileGap2(n, t, { x, y }) < 9)) continue;
+        cands.push({ x, y });
+      }
+    }
+    if (cands.length === 0) break;
+    const t = cands[r.int(cands.length)];
+    // Within the flat 3-tile square: radius 40 to 80 px, nudged a little.
+    const radius = 40 + r.int(41);
+    const room = 90 - radius;
+    const nudge = () => r.int(2 * Math.min(10, room) + 1) - Math.min(10, room);
+    out.push({ tile: t, x: center(t.x) + nudge(), y: center(t.y) + nudge(), r: radius });
   }
   return out;
 }
@@ -285,42 +530,51 @@ export function startGroups(a, b, c, d) {
 function mirrorMap(s, r) {
   const n = s.tiles;
   const q = n / 2;
-  const quarter = new Grid(q, q, false);
-  levels(quarter, s, r, false);
+  const land = new Land(n);
+  // The quarter's corners, 0 to q each way: the corners on its edges are
+  // their own mirror images.
+  const quarter = levels(q + 1, q + 1, s, r, false);
+  for (let y = 0; y <= q; y++) for (let x = 0; x <= q; x++) land.set(x, y, quarter[y * (q + 1) + x]);
+  land.mirror();
+  land.prune();
+  const inQuarter = (x, y) => x >= 0 && y >= 0 && x < q && y < q;
   // The start: near the middle of the quarter.
   const spread = Math.max(1, Math.floor(q / 6));
   const st = { x: Math.floor(q / 2) + r.int(2 * spread + 1) - spread, y: Math.floor(q / 2) + r.int(2 * spread + 1) - spread };
-  flatten(quarter, st.x, st.y);
+  const flip = (t, fx, fy) => ({ x: fx ? n - 1 - t.x : t.x, y: fy ? n - 1 - t.y : t.y });
+  const quarters = [[false, false], [true, false], [false, true], [true, true]];
+  for (const [fx, fy] of quarters) {
+    const t = flip(st, fx, fy);
+    land.flatten(t.x, t.y);
+  }
+  land.prune();
+  const clear = (x, y) => inQuarter(x, y) && tileGap2(n, st, { x, y }) > 8;
+  addChannels(land, Math.round((CHANNELS_PER_1024[s.water] * n * n) / 1024 / 4), r, clear);
+  addPonds(land, Math.round((PONDS_PER_1024[s.water] * n * n) / 1024 / 4), r, clear);
+  land.mirror();
+  land.sanitize();
   // Vents in the quarter, clear of its edges so mirrored vents stay apart.
   const count = Math.max(1, Math.round((VENTS_PER_1024[s.energy] * n * n) / 1024 / 4));
   const inner = (x, y) => x >= 2 && y >= 2 && x < q - 2 && y < q - 2;
-  const vents = placeVents(quarter, ventSizes(count, s.energy, r), r, inner, q, [st]);
-
-  const full = new Grid(n, n, true);
-  for (let y = 0; y < n; y++) {
-    for (let x = 0; x < n; x++) {
-      const qx = x < q ? x : n - 1 - x;
-      const qy = y < q ? y : n - 1 - y;
-      full.set(x, y, quarter.at(qx, qy));
-    }
-  }
-  full.settle();
-  const flip = (t, fx, fy) => ({ x: fx ? n - 1 - t.x : t.x, y: fy ? n - 1 - t.y : t.y });
-  const corners = [[false, false], [true, false], [false, true], [true, true]];
-  const allVents = vents.flatMap((v) => corners.map(([fx, fy]) => ({ ...flip(v, fx, fy), size: v.size })));
-  const [a, b, c, d] = corners.map(([fx, fy]) => flip(st, fx, fy));
-  return finish(full, allVents, [a, b, c, d]);
+  const vents = placeVents(land, ventSizes(count, s.energy, r), r, inner, [st]);
+  const craters = placeCraters(land, Math.round((CRATERS_PER_1024[s.terrain] * n * n) / 1024 / 4) || 1, r, inner, [st], vents);
+  const size = n * TILE_PX;
+  const allVents = vents.flatMap((v) => quarters.map(([fx, fy]) => ({ ...flip(v, fx, fy), size: v.size })));
+  const allCraters = craters.flatMap((c) => quarters.map(([fx, fy]) => ({ x: fx ? size - c.x : c.x, y: fy ? size - c.y : c.y, r: c.r })));
+  const [a, b, c, d] = quarters.map(([fx, fy]) => flip(st, fx, fy));
+  return finish(land, allVents, allCraters, [a, b, c, d]);
 }
 
 function grownMap(s, r) {
   const n = s.tiles;
-  const grid = new Grid(n, n, true);
-  levels(grid, s, r, true);
+  const land = new Land(n);
+  land.c.set(levels(n, n, s, r, true));
+  land.prune();
   // Four starts, as far apart as can be: on dry, flat land if there is
   // any, else wherever is driest.
   const cands = [];
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (grid.flatBlock(x, y, 2) && grid.at(x, y) === 1) cands.push({ x, y });
-  if (cands.length < 4) for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (grid.at(x, y) !== 0) cands.push({ x, y });
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (land.flatBlock(x, y, 2) && land.at(x, y) === GROUND) cands.push({ x, y });
+  if (cands.length < 4) for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (!land.lake(x, y)) cands.push({ x, y });
   if (cands.length < 4) for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) cands.push({ x, y });
   const starts = [cands[r.int(cands.length)]];
   while (starts.length < 4) {
@@ -335,7 +589,12 @@ function grownMap(s, r) {
     }
     starts.push(best);
   }
-  for (const t of starts) flatten(grid, t.x, t.y);
+  for (const t of starts) land.flatten(t.x, t.y);
+  land.prune();
+  const clear = (x, y) => starts.every((t) => tileGap2(n, t, { x, y }) > 8);
+  addChannels(land, Math.round((CHANNELS_PER_1024[s.water] * n * n) / 1024), r, clear);
+  addPonds(land, Math.round((PONDS_PER_1024[s.water] * n * n) / 1024), r, clear);
+  land.sanitize();
 
   // Teams of two get the closer pairs (D16); a and d are on opposite sides.
   const pairings = [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]]];
@@ -352,23 +611,37 @@ function grownMap(s, r) {
   const vents = [];
   for (const t of [a, b, c, d]) {
     const near = (x, y) => tileGap2(n, t, { x, y }) <= 64;
-    vents.push(...placeVents(grid, [sizes.pop()], r, near, n, [a, b, c, d], vents));
+    vents.push(...placeVents(land, [sizes.pop()], r, near, [a, b, c, d], vents));
   }
-  vents.push(...placeVents(grid, sizes, r, () => true, n, [a, b, c, d], vents));
-  return finish(grid, vents, [a, b, c, d]);
+  vents.push(...placeVents(land, sizes, r, () => true, [a, b, c, d], vents));
+  const craters = placeCraters(land, Math.max(1, Math.round((CRATERS_PER_1024[s.terrain] * n * n) / 1024)), r, () => true, [a, b, c, d], vents);
+  return finish(land, vents, craters, [a, b, c, d]);
 }
 
-// The map data from a grid, vents and starts in tiles.
-function finish(grid, vents, [a, b, c, d]) {
-  const rows = [];
-  for (let y = 0; y < grid.h; y++) {
+// The map data from the land, and vents and starts in tiles.
+function finish(land, vents, craters, [a, b, c, d]) {
+  const n = land.n;
+  const corners = [];
+  const water = [];
+  let anyWater = false;
+  for (let y = 0; y < n; y++) {
     let row = '';
-    for (let x = 0; x < grid.w; x++) row += CHARS[grid.at(x, y)];
-    rows.push(row);
+    let marks = '';
+    for (let x = 0; x < n; x++) {
+      const k = y * n + x;
+      row += CHARS[land.c[k]];
+      const m = land.north[k] + 2 * land.west[k] + 4 * land.pond[k];
+      marks += m === 0 ? '.' : String(m);
+      if (m) anyWater = true;
+    }
+    corners.push(row);
+    water.push(marks);
   }
   const px = (t) => ({ x: center(t.x), y: center(t.y) });
   return {
-    rows,
+    corners,
+    water: anyWater ? water : null,
+    craters: craters.map(({ x, y, r }) => ({ x, y, r })),
     vents: vents.map((v) => ({ ...px(v), size: v.size })),
     starts: startGroups(px(a), px(b), px(c), px(d)),
   };

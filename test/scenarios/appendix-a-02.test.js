@@ -75,8 +75,8 @@ test('an Extractor just overlapping a vent earns 3 a round; one well clear earns
 });
 
 test('a Pontoon destroyed under a conduit burns it both ways; the far building goes, the launcher survives', () => {
-  // A lake one tile wide, from x = 480 to 540 px.
-  const map = sketchMapData({ rows: Array(32).fill('~'), at: [8, 0] });
+  // A channel down tile column 8, from x = 480 to 540 px.
+  const map = sketchMapData({ water: Array(32).fill('1'), at: [8, 0] });
   const game = makeGame({ map });
   richPlayers(game);
   const pontoon = builtUnit(game, launchAt(game, 'pontoon', 520, 315).events);

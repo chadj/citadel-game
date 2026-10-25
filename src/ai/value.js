@@ -17,12 +17,13 @@
 //     Extractors beside its precious buildings;
 //   - sight: with fog on, how much of the map its side sees.
 
-import { PX, WET, ENERGY_CAP, VENT_EXTRACTOR_INCOME, EXTRACTOR_INCOME, INTERCEPTOR_RANGE, DOME_RADIUS, ROVER_DRIVE, ROVER_BLAST, EXTRACTOR_BLAST, CHARGE_BLAST } from '../rules/constants.js';
+import { PX, WET, NODE_SPACING, ENERGY_CAP, VENT_EXTRACTOR_INCOME, EXTRACTOR_INCOME, INTERCEPTOR_RANGE, DOME_RADIUS, ROVER_DRIVE, ROVER_BLAST, EXTRACTOR_BLAST, CHARGE_BLAST } from '../rules/constants.js';
 import { UNIT_KINDS, isWorking } from '../rules/units.js';
 import { roundIncome } from '../rules/energy.js';
 import { isGone } from '../rules/conduits.js';
 import { delta } from '../rules/math/wrap.js';
 import { sampleTerrain, tileIndex } from '../rules/terrain/terrain.js';
+import { landDistance } from './land.js';
 
 const BASE = Object.freeze({
   outpost: 60, battery: 55, extractor: 25, barrier: 35, interceptor: 14, spire: 2,
@@ -38,6 +39,11 @@ const d2 = (size, a, b) => {
   const dy = delta(a.y, b.y, size);
   return dx * dx + dy * dy;
 };
+
+// How much a place `d` away counts, for a launcher reaching `r`: in
+// reach, in full; out of reach, much less, and less the further it is,
+// so getting closer still counts for something.
+const within = (d, r) => (d <= 0.85 * r ? 1 : Math.max(0, 0.6 * (1 - (d - 0.85 * r) / (2 * r))));
 
 // How far a launcher reaches, about: more from high ground.
 export function reachOf(u) {
@@ -115,18 +121,20 @@ export function evaluate(game, plan) {
   // Reach: what its launchers can get at.
   const launchers = mine.filter((u) => u.kind === 'outpost' || u.kind === 'battery');
   const outposts = launchers.filter((u) => u.kind === 'outpost');
-  // `dry`: a building's conduit can't cross water without Pontoons, so
-  // a place over the water counts for little (spec 02, Water).
+  // `dry`: a building's conduit can't cross water without Pontoons (spec
+  // 02, Water). So a place over the water counts as far away as the way
+  // round by land; and if land doesn't get there, for little (decision
+  // D58).
   const bridges = s.units.filter((u) => u.kind === 'pontoon').map((u) => u.id).join(',');
   const covered = (p, list, dry = false) => {
     let best = 0;
     for (const l of list) {
       const r = reachOf(l);
       const d = Math.sqrt(d2(size, l, p));
-      // In reach counts in full; out of reach, much less, and less the
-      // further it is, so getting closer still counts for something.
-      let f = d <= 0.85 * r ? 1 : Math.max(0, 0.6 * (1 - (d - 0.85 * r) / (2 * r)));
-      if (f > best && dry && wetBetween(game, plan, l, p, Math.min(d, 0.85 * r), bridges)) f *= 0.2;
+      let f = within(d, r);
+      if (f > best && dry && wetBetween(game, plan, l, p, Math.min(d, 0.85 * r), bridges)) {
+        f = Math.max(0.2 * f, within(landDistance(game.map, p, l), r));
+      }
       if (f > best) best = f;
     }
     return best;
@@ -218,7 +226,9 @@ function wetBetween(game, plan, from, to, far, bridges) {
   const tops = new Map();
   for (const u of game.state.units) if (u.kind === 'pontoon') tops.set(tileIndex(game.map, u.x, u.y), u.base + UNIT_KINDS.pontoon.height);
   let wet = false;
-  for (let d = 20 * PX; d <= far && !wet; d += 20 * PX) {
+  // As closely as conduit nodes settle, so a pond or a channel half a
+  // tile wide isn't stepped over (spec 02, Landforms).
+  for (let d = NODE_SPACING; d <= far && !wet; d += NODE_SPACING) {
     if (sampleTerrain(game.map, from.x + (dx * d) / len, from.y + (dy * d) / len, tops).type === WET) wet = true;
   }
   cache.set(key, wet);
