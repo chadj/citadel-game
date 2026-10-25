@@ -290,19 +290,28 @@ export class WorldView {
         }
         if (u.kind === 'barrier' && u.up && working) this.drawDome(sx, sy, u);
       }
-      // Damage shows even through the fog: smoke, and sparks when it's
-      // bad (spec 04, Damage).
+      // Damage shows even through the fog, for as long as the unit is
+      // damaged: smoke, and sparks when it's bad (spec 04, Damage).
+      // Over the fog's black the smoke is pale, so it can be seen.
       if (u.armor < full && u.kind !== 'pontoon') {
         const bad = u.armor * 10 <= full * 4;
-        const puffs = bad ? 4 : 2;
+        const puffs = bad ? 5 : 3;
+        // Larger over the fog, where it's all there is to see.
+        const size = (bad ? 1.4 : 1) * (seen ? 1 : 1.8);
         for (let k = 0; k < puffs; k++) {
-          const phase = ((this.time / 1400 + k / puffs + (u.id % 7) / 7) % 1);
-          fx.fillStyle(0x3a3a3a, 0.55 * (1 - phase));
-          fx.fillCircle(sx + Math.sin(phase * 6 + k) * 3, sy - h - 2 - phase * 16, 2.5 + phase * 4);
+          const phase = ((this.time / 1800 + k / puffs + (u.id % 7) / 7) % 1);
+          const a = Math.min(1, phase * 5) * (1 - phase);
+          const px = sx + Math.sin(phase * 5 + k) * 4 * size;
+          const py = sy - h - 2 - phase * 28 * size;
+          const pr = (3.5 + phase * 8) * size;
+          fx.fillStyle(seen ? 0xc9c1b6 : 0xe0dad2, (seen ? 0.35 : 0.65) * a);
+          fx.fillCircle(px, py, pr);
+          fx.fillStyle(seen ? 0x3e3a36 : 0xa8a29a, (seen ? 0.6 : 0.5) * a);
+          fx.fillCircle(px, py + pr * 0.15, pr * 0.65);
         }
         if (bad && Math.floor(this.time / 150 + u.id) % 3 === 0) {
           fx.fillStyle(0xffc040, 1);
-          fx.fillCircle(sx + ((u.id * 5) % 7) - 3, sy - h / 2, 1.5);
+          fx.fillCircle(sx + ((u.id * 5) % 7) - 3, sy - h / 2, 2);
         }
       }
     }
