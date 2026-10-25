@@ -234,3 +234,124 @@ on 2026-10-25. Exact numbers chosen during tuning go in
 - **Decision:** The server. So computers carry on whoever drops out.
   Against the computer and in hot seat, the local machine thinks for
   them, in a Web Worker.
+
+## D21. Fixed-point numbers in the rules
+- **Date:** 2026-10-25
+- **Spec:** 12 Every machine plays the same game
+- **Question:** How do the rules do arithmetic so every machine gets
+  the same result?
+- **Decision:** Every number in the game state is a whole number.
+  Positions, altitudes and distances are in 1/1024 px. Velocities are
+  in 1/65536 px per tick. Fractions and trig values are in 1/65536.
+  Divisions round to the nearest whole number, halves away from zero,
+  so mirrored shots fly mirrored paths. sin and cos come from a
+  committed table of whole degrees (`tools/gen-trig.js`), built from
+  0°–90° and mirrored so it's exactly symmetric. Square roots are exact
+  integer roots. The rules never use floats in their results, and the
+  state hash refuses any number that isn't whole (D27).
+
+## D22. Aim and power in a move
+- **Date:** 2026-10-25
+- **Spec:** 01 Shots are hard to repeat exactly, Aiming, Power;
+  12 Every machine plays the same game (a move holds the heading and
+  the power)
+- **Question:** What do a move's heading and power hold?
+- **Decision:** The heading is a whole degree, 0 to 359: the coarser
+  step the shot follows (spec 01). The client's aim can turn more
+  finely, and is rounded to a whole degree when the shot fires. The
+  power is a whole number from 0 to 1000. The client works it out from
+  how long Launch was held, so it isn't limited to one step per tick.
+  The square of the launch speed grows evenly with the power, so the
+  distance grows about evenly too.
+
+## D23. How the terrain is built from tiles
+- **Date:** 2026-10-25
+- **Spec:** 02 Terrain, Levels, Slopes, Water
+- **Question:** The spec gives levels per tile and slopes about 40 px
+  wide. Where do the slopes lie, and how are corners and shores shaped?
+- **Decision:**
+  - Each tile has one level. Raised tiles are flat on top all over.
+  - A raised level's slope lies just outside its tiles, running down
+    across the lower neighbor, 40 px wide straight across. Distance to
+    the raised tiles is the larger of the east-west and north-south
+    gaps, so slopes are the same width whichever way they face, and
+    wider where crossed at a corner (spec 02).
+  - A Mountain's slope runs across the Plateau around it, which leaves
+    a 20 px Plateau ledge per tile before the Plateau's own slope.
+  - The climb is linear plus rocky bumps up to 2 px, from smooth noise
+    on a 6 px grid. The bumps fade out at both edges of the slope.
+  - The shore is a 15 px strip of slope at altitude 0 on the Ground
+    beside water. Water tiles are water all over, so a Pontoon's tile
+    (D4) is always fully water.
+  - Neighboring tiles, corners included, may differ by at most one
+    level: Ground never touches a Mountain, and water never touches a
+    Plateau.
+
+## D24. Planet heights
+- **Date:** 2026-10-25
+- **Spec:** 02 Planets, Levels
+- **Question:** How high are each planet's Plateaus and Mountains?
+- **Decision:** In px above Ground:
+
+  | Planet | Plateau | Mountain |
+  |---|---|---|
+  | Tundra | 30 | 55 |
+  | Canyon | 40 | 80 |
+  | Toxic | 28 | 45 |
+  | Glacier | 35 | 65 |
+  | Plains | 25 | 38 |
+  | Desert | 32 | 60 |
+
+  Canyon's slopes climb about as far as they are wide; Plains' are the
+  gentlest (spec 02, Steepness).
+
+## D25. The flight model
+- **Date:** 2026-10-25
+- **Spec:** 01 The flight, Wind; Appendix A, 01 and 02
+- **Question:** What are the tick order and the flight constants?
+- **Decision:**
+  - Each tick: gravity; then drag on movement across the ground (only
+    across the wind, when the wind acts) and the wind's push toward its
+    drift speed; then the move, wrapping at the edges; then the landing
+    check. Collisions (spec 06) are added after the move.
+  - Drag is a fixed share of the speed across the ground each tick.
+  - The wind pushes only when the shot moves across the ground faster
+    than about 5 px/s, and never past the drift speed.
+  - A landing point is found within the tick's move: the move is
+    checked in sixteenths, then narrowed by halving.
+  - Shots start 2 px above the launcher's top.
+  - Tuned values: gravity about 205 px/s², drag about 0.16 of the
+    speed per second, Strong push about 88 px/s² with a drift of about
+    68 px/s. Measured on flat Ground from a 20 px launcher:
+
+    | Case | Got | Target |
+    |---|---|---|
+    | Outpost, full power | 503 px, 2.47 s, rises 145 px | 500 px, 2.5 s, 150 px |
+    | Outpost, lowest power | 98 px, 1.13 s, rises 21 px | 100 px, 1.2 s, 20 px |
+    | Battery, full power | 900 px, 3.40 s, rises 283 px | 900 px, 3.5 s, 300 px |
+    | Without drag | 1.21 × as far | about a fifth further |
+    | Strong tailwind / headwind | 609 / 338 px | 600 / 350 px |
+    | Strong crosswind | 503 along, 143 sideways | 500, 150 |
+    | From 75 px above the target | 546 px | 540 px |
+
+  `node tools/calibrate.js` prints this table from the current values.
+
+## D26. The map format
+- **Date:** 2026-10-25
+- **Spec:** 02 (how maps are stored is up to the implementation)
+- **Question:** How are maps stored?
+- **Decision:** As plain data: a name, a suggested player count, a
+  planet, one string of tile characters per row (`~` Water, `.`
+  Ground, `+` Plateau, `^` Mountain), and the vents' centers in pixels
+  with a size of large, medium or small (110, 80 and 45 px across).
+  Start positions are added with D16 in M8. Loading a map checks it
+  and lists every problem found.
+
+## D27. State hashing
+- **Date:** 2026-10-25
+- **Spec:** 12 Determinism checks
+- **Question:** How are game states compared?
+- **Decision:** The state is plain data. It's written out in a
+  canonical form, with object keys sorted and every string prefixed
+  with its length, and hashed to 64 bits (two 32-bit FNV-1a lanes).
+  Anything that isn't plain data or a whole number is refused.
