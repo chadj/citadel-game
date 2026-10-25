@@ -12,7 +12,7 @@ const PROFILES = [
   { slug: 'meridian', pitch: 1.0, rate: 1.0, pick: 0 },
   { slug: 'ostrevan', pitch: 0.85, rate: 0.95, pick: 1 },
   { slug: 'deepbore', pitch: 0.7, rate: 0.92, pick: 2 },
-  { slug: 'ruuk', pitch: 1.15, rate: 1.08, pick: 3 },
+  { slug: 'ruuk', pitch: 0.55, rate: 0.88, pick: 3 }, // a warrior's: low and gruff
 ];
 
 export class AideVoice {
