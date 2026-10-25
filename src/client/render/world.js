@@ -147,7 +147,7 @@ export class WorldView {
     this.drawUnits(copies);
     this.drawShots(copies);
     this.drawPending(copies);
-    this.effects.draw(this.gfx.fx, copies);
+    this.effects.draw(this.gfx.fx, copies, (x, y, z) => !this.sees(x, y, z));
     if (controls) this.drawTargeting(copies, controls);
     this.drawOverlays(copies);
     // The fog changes every tick while anything flies (shots see

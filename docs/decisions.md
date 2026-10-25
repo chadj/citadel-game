@@ -685,6 +685,10 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     or infects an opponent's unit; a Rover counts when it explodes at
     the end of a round. Energy earned is income and Citadel bonuses,
     less energy put aside coming back.
+  - **Effects in the fog** (spec 08: they show through it) glow over
+    the black, and their smoke and debris turn pale there. Explosions
+    and blasts leave smoke that rises and spreads for about 3 to 4 s,
+    as do units destroyed without a blast.
   - **Factions** are named Meridian, Ostrevan, Deepbore and Ruuk
     (chosen by the user, replacing earlier names that were too close
     to real names), and differ in the outline of their units. The six

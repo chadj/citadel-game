@@ -4,7 +4,9 @@
 // Short-lived effects, started by the game's events (spec 06, What
 // players see; spec 05, What players see; spec 07, What players see;
 // spec 02, Craters). Effects show even in hidden cells (spec 08, Some
-// things show through the fog), so they're drawn above the fog.
+// things show through the fog), so they're drawn above the fog. Over
+// the fog's black they glow, and their smoke and debris turn pale, so
+// they stand out there too.
 // Craters lie under everything else, and the oldest fade as new ones
 // form.
 
@@ -41,7 +43,18 @@ export class Effects {
   add(kind, x, y, z, more = {}) {
     const [mx, my] = this.at(x, y, z);
     const dur = more.dur ?? 600;
-    this.list.push({ kind, mx, my, age: 0, dur, ...more });
+    this.list.push({ kind, x, y, z, mx, my, age: 0, dur, ...more });
+  }
+
+  // Smoke rising after a blast: a few puffs, drifting up and spreading.
+  smoke(x, y, z, r, dur) {
+    const puffs = [...Array(5)].map((_, k) => ({
+      dx: (Math.random() - 0.5) * r,
+      rise: 24 + Math.random() * 20 + r * 0.6,
+      delay: k * 0.1,
+      size: r * (0.6 + Math.random() * 0.3),
+    }));
+    this.add('smoke', x, y, z, { r, dur, puffs });
   }
 
   crater(x, y, r) {
@@ -69,13 +82,15 @@ export class Effects {
     const color = (p) => PLAYER_COLORS[this.game.setup.players[p]?.color] ?? 0xffffff;
     switch (e.type) {
       case 'explosion':
-        this.add('boom', e.x, e.y, e.z, { r: e.radius / PX, dur: 500 + e.radius / PX * 6 });
+        this.add('boom', e.x, e.y, e.z, { r: e.radius / PX, dur: 600 + e.radius / PX * 8 });
+        this.smoke(e.x, e.y, e.z, Math.max(12, e.radius / PX), 2800 + e.radius / PX * 30);
         break;
       case 'surge':
         this.add('boom', e.x, e.y, e.z, { r: 40, dur: 700, tint: 0xb98cff });
         break;
       case 'blast':
-        this.add('blast', e.x, e.y, e.z, { r: e.radius / PX, dur: 900 });
+        this.add('blast', e.x, e.y, e.z, { r: e.radius / PX, dur: 1100 });
+        this.smoke(e.x, e.y, e.z, 50, 4200);
         this.crater(e.x, e.y, 14);
         break;
       case 'crater':
@@ -101,7 +116,10 @@ export class Effects {
         // debris briefly; the others' blasts come a moment later.
         if (e.how === 'destroyed' && e.kind !== 'skyProbe') this.crater(p.x, p.y, 9);
         const explodes = e.how === 'destroyed' && ['extractor', 'charge', 'rover'].includes(e.kind);
-        if (!explodes) this.add('debris', p.x, p.y, p.z, { dur: 1100 });
+        if (!explodes) {
+          this.add('debris', p.x, p.y, p.z, { dur: 1300 });
+          if (e.how === 'destroyed') this.smoke(p.x, p.y, p.z, 18, 3000);
+        }
         break;
       }
       case 'domeFlicker':
@@ -197,15 +215,49 @@ export class Effects {
     });
   }
 
-  draw(g, copies) {
+  // `hidden(x, y, z)` says whether a point is in the viewer's fog.
+  draw(g, copies, hidden = () => false) {
     for (const e of this.list) {
       const t = e.age / e.dur;
-      for (const [sx, sy] of copies(e.mx, e.my, (e.r ?? 20) + 40)) drawOne(g, e, t, sx, sy);
+      const dark = hidden(e.x, e.y, e.z ?? 0);
+      for (const [sx, sy] of copies(e.mx, e.my, (e.r ?? 20) + 60)) {
+        if (dark) drawGlow(g, e, t, sx, sy);
+        drawOne(g, e, t, sx, sy, dark);
+      }
     }
   }
 }
 
-function drawOne(g, e, t, sx, sy) {
+// Over the fog's black: a soft glow behind fire and light.
+function drawGlow(g, e, t, sx, sy) {
+  const fade = (1 - t) * (1 - t);
+  switch (e.kind) {
+    case 'boom': {
+      const r = Math.max(6, e.r);
+      g.fillStyle(e.tint ?? 0xff8a30, 0.22 * fade);
+      g.fillCircle(sx, sy, r * 2.4);
+      g.fillStyle(e.tint ?? 0xffb060, 0.3 * fade);
+      g.fillCircle(sx, sy, r * 1.5);
+      break;
+    }
+    case 'blast':
+      g.fillStyle(0xff7a30, 0.25 * fade);
+      g.fillCircle(sx, sy - 10, Math.max(50, e.r * 0.9));
+      g.fillStyle(0xffb060, 0.3 * fade);
+      g.fillCircle(sx, sy - 10, 40);
+      break;
+    case 'pulse':
+    case 'splash':
+    case 'debris':
+      g.fillStyle(0xffffff, 0.12 * fade);
+      g.fillCircle(sx, sy, 24);
+      break;
+    default:
+      break;
+  }
+}
+
+function drawOne(g, e, t, sx, sy, dark = false) {
   switch (e.kind) {
     case 'boom': {
       const r = Math.max(4, e.r) * (0.4 + 0.6 * Math.sqrt(t));
@@ -213,8 +265,23 @@ function drawOne(g, e, t, sx, sy) {
       g.fillCircle(sx, sy, r);
       g.fillStyle(0xfff2c0, 0.9 * (1 - t) * (1 - t));
       g.fillCircle(sx, sy, r * 0.55);
-      g.fillStyle(0x333333, 0.35 * t * (1 - t) * 4);
-      g.fillCircle(sx, sy - 6 * t * 4, r * 0.7);
+      break;
+    }
+    case 'smoke': {
+      // Dark smoke over the ground, pale over the fog, with a pale edge
+      // either way so it reads on dark terrain too.
+      for (const p of e.puffs) {
+        const u = Math.max(0, Math.min(1, (t - p.delay) / (1 - p.delay)));
+        if (u <= 0) continue;
+        const a = Math.min(1, u * 6) * (1 - u) ** 0.7;
+        const r = p.size * (0.6 + 1.4 * u);
+        const x = sx + p.dx * (0.5 + u);
+        const y = sy - p.rise * u * 2;
+        g.fillStyle(dark ? 0xe0dad2 : 0xc9c1b6, (dark ? 0.55 : 0.4) * a);
+        g.fillCircle(x, y, r);
+        g.fillStyle(dark ? 0xa8a29a : 0x4a443e, (dark ? 0.5 : 0.5) * a);
+        g.fillCircle(x, y + r * 0.15, r * 0.7);
+      }
       break;
     }
     case 'blast': {
@@ -275,7 +342,7 @@ function drawOne(g, e, t, sx, sy) {
       for (let k = 0; k < 7; k++) {
         const a = k * 2.4;
         const d = 3 + 12 * t;
-        g.fillStyle(0x50483f, 1 - t);
+        g.fillStyle(dark ? 0xd8cfc4 : 0x50483f, 1 - t);
         g.fillRect(sx + Math.cos(a) * d, sy + Math.sin(a) * d * 0.6 + 6 * t, 3, 2);
       }
       break;
