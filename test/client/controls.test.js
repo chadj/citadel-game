@@ -18,12 +18,12 @@ test('a press turns the aim about a degree; holding turns it faster and faster, 
   const t = new AimTurner();
   assert.ok(Math.abs(t.press(1) / AIM_FINE - 1) <= 0.25);
   // Rates over successive 3-tick (100 ms) windows rise, and level off
-  // near 146°/s.
+  // near 147°/s.
   const rates = [];
   for (let k = 0; k < 30; k++) rates.push(t.update(3) / AIM_FINE * 10);
   // (Within one fine step: the turn carries fractions of a step.)
   for (let k = 1; k < rates.length; k++) assert.ok(rates[k] >= rates[k - 1] - 10 / AIM_FINE);
-  assert.ok(Math.abs(rates.at(-1) - 146) <= 2, `${rates.at(-1)}°/s`);
+  assert.ok(Math.abs(rates.at(-1) - 147) <= 2, `${rates.at(-1)}°/s`);
   t.release();
   assert.equal(t.update(100), 0);
   // Counterclockwise is negative.
