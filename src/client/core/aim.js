@@ -8,17 +8,20 @@
 // whole degree, and the targeting marks show it only to the nearest
 // MARK_STEP degrees. So two aims that look the same can fly differently.
 
+import { TICKS_PER_SECOND } from '../../rules/constants.js';
+
 export const AIM_FINE = 8; // steps per degree
 export const AIM_FULL = 360 * AIM_FINE;
 export const PRESS_TURN = 9; // a press turns 1⅛°: about a degree
 export const MARK_STEP = 3; // the marks show the heading to about 3°
 
 // Holding an arrow: after a short wait, it turns faster and faster, up
-// to about 250° a second (decision D22).
-export const HOLD_WAIT_MS = 60;
-export const RAMP_MS = 900;
+// to about 150° a second. It turns once a tick, at the rules' 30 ticks
+// a second, so a hold turns it in coarse steps (decision D22).
+export const HOLD_WAIT_TICKS = 2; // about 60 ms
+export const RAMP_TICKS = 27; // about 0.9 s
 export const START_RATE = 15; // degrees a second
-export const MAX_RATE = 250;
+export const MAX_RATE = 150;
 
 export const wrapAim = (fine) => ((Math.round(fine) % AIM_FULL) + AIM_FULL) % AIM_FULL;
 
@@ -56,11 +59,11 @@ export class AimTurner {
     return this.dir !== 0;
   }
 
-  // Time passes; returns the turn in steps since the last call.
-  update(ms) {
+  // Ticks pass; returns the turn in steps since the last call.
+  update(ticks = 1) {
     if (this.dir === 0) return 0;
     const from = this.held;
-    this.held += ms;
+    this.held += ticks;
     // Degrees turned between `from` and `held`, integrating the rate.
     const turned = degreesHeld(this.held) - degreesHeld(from);
     const steps = turned * AIM_FINE + this.carry;
@@ -70,12 +73,12 @@ export class AimTurner {
   }
 }
 
-// Degrees turned after holding for t ms, beyond the press itself.
+// Degrees turned after holding for t ticks, beyond the press itself.
 function degreesHeld(t) {
-  const s = Math.max(0, t - HOLD_WAIT_MS);
-  const ramp = Math.min(s, RAMP_MS);
-  const rise = (MAX_RATE - START_RATE) / RAMP_MS;
-  let deg = (START_RATE * ramp + (rise * ramp * ramp) / 2) / 1000;
-  if (s > RAMP_MS) deg += (MAX_RATE * (s - RAMP_MS)) / 1000;
+  const s = Math.max(0, t - HOLD_WAIT_TICKS);
+  const ramp = Math.min(s, RAMP_TICKS);
+  const rise = (MAX_RATE - START_RATE) / RAMP_TICKS;
+  let deg = (START_RATE * ramp + (rise * ramp * ramp) / 2) / TICKS_PER_SECOND;
+  if (s > RAMP_TICKS) deg += (MAX_RATE * (s - RAMP_TICKS)) / TICKS_PER_SECOND;
   return deg;
 }

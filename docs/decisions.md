@@ -260,15 +260,9 @@ on 2026-10-25. Exact numbers chosen during tuning go in
   step the shot follows (spec 01). The client's aim can turn more
   finely, and is rounded to a whole degree when the shot fires. The
   power is a whole number from 0 to 1000. The client works it out from
-  how long Launch was held, so it isn't limited to one step per tick.
+  how many ticks Launch was held (D38).
   The square of the launch speed grows evenly with the power, so the
   distance grows about evenly too.
-- **Holding an arrow (user's choice, 2026-10-25):** a press turns the
-  aim 1⅛°. If the key is still held after 60 ms, the aim turns
-  continuously, speeding up from 15° to 250° a second over 900 ms.
-  The 60 ms wait was 250 ms, which felt too long. The top speed was
-  the spec's "about 150° a second"; the user raised it to 250° a
-  second (proposed spec wording in docs/spec-changes.md).
 
 ## D23. How the terrain is built from tiles
 - **Date:** 2026-10-25
@@ -632,14 +626,21 @@ on 2026-10-25. Exact numbers chosen during tuning go in
 - **Spec:** 01 Shots are hard to repeat exactly, Aiming, Power; 10 The
   launching view, Keys; decision D22
 - **Decision:**
-  - **The aim** turns in eighths of a degree. A press turns it 1⅛°.
-    Held, it waits 0.25 s, then turns at 15°/s, rising evenly to 150°/s
-    over 0.9 s. A shot follows it to the nearest whole degree.
+  - **Ticks (user's choice, 2026-10-25):** holding an arrow and holding
+    Launch both work at the rules' 30 ticks a second, not frame by
+    frame. The aim turns and the meter moves once a tick. The coarse
+    steps are part of what makes a shot hard to repeat.
+  - **The aim** turns in eighths of a degree. A press turns it 1⅛° at
+    once. Held, it waits 2 ticks (about 60 ms; the user found 0.25 s
+    too long), then turns at 15°/s, rising evenly to 150°/s over 27
+    ticks (0.9 s): about 5° a tick at full speed. A shot follows it to
+    the nearest whole degree.
   - **The targeting marks** show the heading to the nearest 3°, so two
     aims that look the same can fly a degree or two apart.
-  - **The meter** fills in 1.25 s and empties in 1.25 s; the power is
-    the share full × 1000, from how long Launch was held. The quickest
-    tap counts as 40 ms held (power 32). It shows in 20 steps: a power
+  - **The meter** fills in 38 ticks (about 1.27 s) and empties in 38;
+    the power is the share full × 1000, from the ticks Launch was held,
+    so there are 38 powers each way. The quickest tap counts as 1 tick
+    held (power 26). It shows in 20 steps: a power
     of p lights ⌈p / 50⌉ of them.
   - **Launch** stops the clock when pressed. If the launch is then
     refused, the clock runs again. Launch isn't pressed at all if the

@@ -10,18 +10,19 @@ import {
   AIM_FINE, AimTurner, PRESS_TURN, moveHeading, markHeading, wrapAim, aimFromHeading,
 } from '../../src/client/core/aim.js';
 import {
-  Meter, meterPower, meterShown, meterRunOut, METER_FILL_MS, METER_STEPS,
+  Meter, meterPower, meterShown, meterRunOut, METER_FILL_TICKS, METER_STEPS,
 } from '../../src/client/core/meter.js';
 import { Camera, GLIDE_MS, wrapDelta } from '../../src/client/core/camera.js';
 
-test('a press turns the aim about a degree; holding turns it faster and faster, up to about 250° a second', () => {
+test('a press turns the aim about a degree; holding turns it faster and faster, up to about 150° a second, a tick at a time', () => {
   const t = new AimTurner();
   assert.ok(Math.abs(t.press(1) / AIM_FINE - 1) <= 0.25);
-  // Rates over successive 100 ms windows rise, and level off near 250°/s.
+  // Rates over successive 3-tick (100 ms) windows rise, and level off
+  // near 150°/s.
   const rates = [];
-  for (let k = 0; k < 30; k++) rates.push(t.update(100) / AIM_FINE * 10);
+  for (let k = 0; k < 30; k++) rates.push(t.update(3) / AIM_FINE * 10);
   for (let k = 1; k < rates.length; k++) assert.ok(rates[k] >= rates[k - 1] - 1);
-  assert.ok(Math.abs(rates.at(-1) - 250) <= 2, `${rates.at(-1)}°/s`);
+  assert.ok(Math.abs(rates.at(-1) - 150) <= 2, `${rates.at(-1)}°/s`);
   t.release();
   assert.equal(t.update(100), 0);
   // Counterclockwise is negative.
@@ -45,15 +46,26 @@ test('the marks show the heading only roughly: different whole degrees can look 
 
 test('the meter fills in about 1.25 s, runs back down at the same speed, and fires by itself at the bottom', () => {
   assert.equal(meterPower(0), 0);
-  assert.equal(meterPower(METER_FILL_MS), 1000);
-  assert.equal(meterPower(METER_FILL_MS * 1.5), 500);
-  assert.ok(!meterRunOut(METER_FILL_MS * 2 - 1));
+  assert.equal(meterPower(METER_FILL_TICKS), 1000);
+  assert.equal(meterPower(METER_FILL_TICKS * 1.5), 500);
+  assert.ok(Math.abs(METER_FILL_TICKS / 30 - 1.25) < 0.05);
+  assert.ok(!meterRunOut(METER_FILL_TICKS * 2 - 1));
   const m = new Meter();
   m.start();
   let fired = null;
-  for (let t = 0; t < 3000 && fired === null; t += 10) fired = m.update(10);
+  for (let t = 0; t < 90 && fired === null; t++) fired = m.update();
   assert.equal(fired, 0, 'the only way to the lowest power: all the way up and back down');
   assert.ok(!m.holding);
+});
+
+test('the meter moves a tick at a time, so a hold can give only a few dozen powers', () => {
+  const powers = new Set();
+  for (let ticks = 1; ticks < 2 * METER_FILL_TICKS; ticks++) powers.add(meterPower(ticks));
+  assert.equal(powers.size, METER_FILL_TICKS); // up and back down give the same steps
+  const m = new Meter();
+  m.start();
+  m.update(16);
+  assert.equal(m.release(), meterPower(16));
 });
 
 test('the quickest tap fires a little above the lowest power', () => {
@@ -70,7 +82,7 @@ test('the meter shows the power only coarsely, in about 20 steps, and keeps show
   assert.equal(meterShown(510), meterShown(545));
   const m = new Meter();
   m.start();
-  m.update(600);
+  m.update(18);
   const power = m.release();
   assert.equal(m.shown, power);
   m.clear();

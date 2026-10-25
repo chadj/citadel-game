@@ -51,7 +51,7 @@ test('two shots with the same displayed aim and meter can land in different plac
   // Two aims the targeting marks show alike, and two releases the meter
   // shows alike.
   const aims = [Math.round(10.6 * AIM_FINE), Math.round(12.4 * AIM_FINE)];
-  const powers = [meterPower(510), meterPower(545)];
+  const powers = [meterPower(16), meterPower(17)]; // ticks held
   assert.equal(markHeading(aims[0]), markHeading(aims[1]));
   assert.equal(meterShown(powers[0]), meterShown(powers[1]));
   const a = fly({ heading: moveHeading(aims[0]), power: powers[0] });

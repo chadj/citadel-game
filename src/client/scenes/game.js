@@ -20,7 +20,7 @@ import { GameSound } from '../audio/game-sound.js';
 import { Hud } from '../ui/hud.js';
 import { GameMenu } from '../ui/game-menu.js';
 import { textField, label, Button, pointerAt, DPR } from '../ui/kit.js';
-import { PX } from '../../rules/constants.js';
+import { PX, TICKS_PER_SECOND } from '../../rules/constants.js';
 import { ITEMS, BUILDING, itemCost } from '../../rules/items.js';
 import { UNIT_KINDS, findUnit, isWorking } from '../../rules/units.js';
 import { conduitWarning } from '../../rules/conduits.js';
@@ -50,6 +50,7 @@ export class GameScene extends BaseScene {
     this.cam = new Camera(this.world.size);
     this.cam.setView(this.view.width, this.view.height);
     this.turner = new AimTurner();
+    this.inputMs = 0; // time toward the aim's and the meter's next tick
     this.overrideOn = false;
     this.chat = [];
     this.menu = null;
@@ -719,9 +720,18 @@ export class GameScene extends BaseScene {
     const c = this.controls;
     if (c) {
       c.checkLevel();
-      if (this.turner.turning) c.turnAim(this.turner.update(ms));
-      const fired = c.meter.update(ms);
-      if (fired !== null) this.fire(fired);
+      // The aim and the meter move in ticks, at the rules' rate, so
+      // holding turns and fills in coarse steps (decision D22).
+      this.inputMs += ms;
+      while (this.inputMs >= 1000 / TICKS_PER_SECOND) {
+        this.inputMs -= 1000 / TICKS_PER_SECOND;
+        if (this.turner.turning) c.turnAim(this.turner.update());
+        const fired = c.meter.update();
+        if (fired !== null) {
+          this.fire(fired);
+          break;
+        }
+      }
     }
     // Arrow keys, and Edge Scrolling.
     let dx = (this.arrows.right ? 1 : 0) - (this.arrows.left ? 1 : 0);
