@@ -174,9 +174,9 @@ the end of each round.
   Citadel. Without teams, every player is a team of one.
 - **The game ends when fewer than two teams are left.** The team that's
   left wins, even if only computers are left in it.
-- **The game also ends if no human is left.** Otherwise, if none of
-  the players still in the game is a connected human, the game ends
-  with no winner.
+- **Otherwise, the game also ends if no human is left.** If none of
+  the players still in the game is a connected human, it ends with no
+  winner.
   - Every human then sees the defeat screen.
 - When the game ends, each player sees a victory screen if their team
   won, and a defeat screen otherwise. A game summary follows (chapter
