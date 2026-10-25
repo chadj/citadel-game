@@ -637,7 +637,10 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     (speeds the user chose). A shot follows it to
     the nearest whole degree.
   - **The targeting marks** show the heading to the nearest 3°, so two
-    aims that look the same can fly a degree or two apart.
+    aims that look the same can fly a degree or two apart. Besides the
+    ring, the heading is one round mark in the player's color, 34 px
+    out from the ring (user's choice, 2026-10-25: a line of marks
+    pointed too precisely).
   - **The meter** fills in 38 ticks (about 1.27 s) and empties in 38;
     the power is the share full × 1000, from the ticks Launch was held,
     so there are 38 powers each way. The quickest tap counts as 1 tick

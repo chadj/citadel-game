@@ -476,14 +476,13 @@ export class WorldView {
         top.fillCircle(sx, sy - (spec.height * LIFT) / PX, 7);
       }
       if (!controls.item) continue;
+      // One round mark, not a line, so the heading is only roughly shown.
       const a = deg(markHeading(controls.aim()));
-      for (let k = 0; k < 3; k++) {
-        const d = r + 10 + k * 12;
-        top.fillStyle(color, 1);
-        top.fillCircle(sx + Math.cos(a) * d, sy + Math.sin(a) * d, 3 - k * 0.6);
-        top.lineStyle(1, 0x000000, 0.6);
-        top.strokeCircle(sx + Math.cos(a) * d, sy + Math.sin(a) * d, 3 - k * 0.6);
-      }
+      const d = r + 34;
+      top.fillStyle(color, 1);
+      top.fillCircle(sx + Math.cos(a) * d, sy + Math.sin(a) * d, 4);
+      top.lineStyle(1, 0x000000, 0.6);
+      top.strokeCircle(sx + Math.cos(a) * d, sy + Math.sin(a) * d, 4);
     }
     if (controls.item) {
       const warn = conduitWarning(this.game.state, u, moveHeading(controls.aim()), this.map.size);
