@@ -9,11 +9,12 @@
 // one cell, copied from the far side, keeps the edge smooth where the
 // map wraps.
 
-export const FOG_SUB = 4;
+export const FOG_SUB = 6;
 // The blend's range that becomes the edge: below EDGE_LOW it's clear,
-// above EDGE_HIGH it's fully dark.
-const EDGE_LOW = 0.3;
-const EDGE_HIGH = 0.7;
+// above EDGE_HIGH it's fully dark. The blend crosses a whole fog cell
+// (30 px), so this range of 0.27 makes the edge about 8 px wide.
+const EDGE_LOW = 0.365;
+const EDGE_HIGH = 0.635;
 
 // Fills `out` (RGBA, (cells + 2) * FOG_SUB pixels square) from a side's
 // counts. `alpha` is how dark hidden cells are, 0 to 255.
