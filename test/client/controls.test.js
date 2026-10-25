@@ -14,14 +14,14 @@ import {
 } from '../../src/client/core/meter.js';
 import { Camera, GLIDE_MS, wrapDelta } from '../../src/client/core/camera.js';
 
-test('a press turns the aim about a degree; holding turns it faster and faster, up to about 150° a second', () => {
+test('a press turns the aim about a degree; holding turns it faster and faster, up to about 250° a second', () => {
   const t = new AimTurner();
   assert.ok(Math.abs(t.press(1) / AIM_FINE - 1) <= 0.25);
-  // Rates over successive 100 ms windows rise, and level off near 150°/s.
+  // Rates over successive 100 ms windows rise, and level off near 250°/s.
   const rates = [];
   for (let k = 0; k < 30; k++) rates.push(t.update(100) / AIM_FINE * 10);
   for (let k = 1; k < rates.length; k++) assert.ok(rates[k] >= rates[k - 1] - 1);
-  assert.ok(Math.abs(rates.at(-1) - 150) <= 2, `${rates.at(-1)}°/s`);
+  assert.ok(Math.abs(rates.at(-1) - 250) <= 2, `${rates.at(-1)}°/s`);
   t.release();
   assert.equal(t.update(100), 0);
   // Counterclockwise is negative.

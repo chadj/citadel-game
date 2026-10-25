@@ -265,8 +265,10 @@ on 2026-10-25. Exact numbers chosen during tuning go in
   distance grows about evenly too.
 - **Holding an arrow (user's choice, 2026-10-25):** a press turns the
   aim 1⅛°. If the key is still held after 60 ms, the aim turns
-  continuously, speeding up from 15° to 150° a second over 900 ms.
-  The 60 ms wait was 250 ms, which felt too long.
+  continuously, speeding up from 15° to 250° a second over 900 ms.
+  The 60 ms wait was 250 ms, which felt too long. The top speed was
+  the spec's "about 150° a second"; the user raised it to 250° a
+  second (proposed spec wording in docs/spec-changes.md).
 
 ## D23. How the terrain is built from tiles
 - **Date:** 2026-10-25
