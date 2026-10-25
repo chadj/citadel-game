@@ -7,6 +7,9 @@
 
 import * as Phaser from 'phaser';
 import { loadPrefs } from './core/prefs.js';
+import { AudioEngine } from './audio/engine.js';
+import { Music } from './audio/music.js';
+import { AideVoice } from './audio/voice.js';
 import { MenuScene } from './scenes/menu.js';
 import { OptionsScene } from './scenes/options.js';
 import { SetupScene } from './scenes/setup.js';
@@ -22,10 +25,15 @@ const game = new Phaser.Game({
   dom: { createContainer: true },
   disableContextMenu: true,
   input: { activePointers: 3 },
+  // The game makes its own sound (src/client/audio).
+  audio: { noAudio: true },
   scene: [MenuScene, OptionsScene, SetupScene, GameScene, SummaryScene, ReplaysScene],
 });
 
-game.registry.set('prefs', loadPrefs());
+const prefs = loadPrefs();
+game.registry.set('prefs', prefs);
+const engine = new AudioEngine(prefs);
+game.registry.set('audio', { engine, music: new Music(engine), voice: new AideVoice(engine, prefs) });
 
 // For looking into the game from the browser's console.
 window.lunarCitadel = game;

@@ -138,7 +138,11 @@ export function endShot(game, shot) {
 function move(ctx, shot) {
   const { game } = ctx;
   if (shot.item === 'skyProbe' && shot.peakTick !== null) return probeStop(ctx, shot);
-  if (shot.item === 'seeker') seek(game, shot);
+  if (shot.item === 'seeker') {
+    seek(game, shot);
+    // For the screen and the sound: it has just locked on.
+    if (shot.lockTick === game.state.tick) ctx.emit({ type: 'seekerLocked', shot: shot.id, unit: shot.target, x: shot.x, y: shot.y, z: shot.z });
+  }
   const homing = shot.target !== null;
   if (!homing) return { landing: stepShot(shot, game.wind, ctx.env), halted: false };
 

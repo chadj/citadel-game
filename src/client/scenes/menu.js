@@ -14,6 +14,7 @@ export class MenuScene extends BaseScene {
   }
 
   create() {
+    this.audio?.music.play('menu');
     this.heading = this.title('Lunar Citadel');
     this.sub = label(this, 'Artillery and base building on a wrapping world', { size: 15, color: UI.dimText }).setOrigin(0.5, 0);
     this.buttons = [

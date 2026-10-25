@@ -881,3 +881,95 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     reach counts at most 60%, less the further it is.
   - **Enemy Pontoons** are attacked like any other target: playing a
     shot out shows what sinks and burns with them.
+
+## D49. Sound effects and where they're heard — Ours
+- **Date:** 2026-10-25
+- **Spec:** 11 Volumes, Where effects are heard, The effects, Menu
+  sounds
+- **Decision:**
+  - **By name.** The game asks for every sound by name
+    (`explosion.large`, `launch.battery`, `ui.click`, …). One table,
+    `src/client/audio/sounds.js`, says where each name comes from: a
+    recipe made in the browser with the Web Audio API, or recorded
+    files (one picked at random each time). Swapping in a recording
+    changes that table only.
+  - **Placement.** Heard from the middle of the view: volume falls as
+    (1 − d / 1300 px)², the short way around the map; pan leans fully
+    (85%) at 700 px to the side. In the fog: half volume, no pan. A
+    replay hears everything as seen.
+  - **Following.** The launch sound follows its shot until the shot
+    ends; the Seeker's lock tone (a loop, from the lock until the
+    shot ends), the Interceptor missile's sound and a driving Rover's
+    sound are loops that follow what made them, and stop with it.
+  - **Which sound:** explosions small, medium and large below 25 and
+    35 px of radius; a blast below 100 px is a Charge's, below 160 px
+    an Extractor's, else a Rover's, each its own sound. A unit that
+    blasts is heard only in its blast. Units without a blast make a
+    large or small destruction sound by kind; a disabled unit makes
+    its own power-down sound. Landings thud heavy (Outpost, Battery,
+    Extractor), medium or light; Pontoons and anything coming down in
+    water splash, more heavily for heavier things.
+  - **Clear mix.** At most 12 effects and interface sounds at once
+    (the oldest that isn't a loop makes room). Each play varies pitch
+    by up to ±6% and volume by up to ±10%; each sound has a shortest
+    gap between plays (25–120 ms). A compressor sits on the output.
+  - **Levels.** Each volume setting is a bus, at (setting/100)² of its
+    level. Music's level is 0.32 of the effects', the interface's 0.7.
+  - **Interface.** Menu-screen buttons sound on hover and on click; in
+    the game, only Launch's press makes an interface sound. Chat
+    sounds when a message is sent (hot seat; online play will sound
+    it on arrival). Letting go of an Options volume slider plays an
+    explosion, a chord, an aide line or a click at the new volume.
+
+## D50. The aide — Ours
+- **Date:** 2026-10-25
+- **Spec:** 11 The aide
+- **Decision:**
+  - **Lines.** Three or four per event (`src/client/core/aide.js`),
+    each with an id `aide.<event>.<n>`. It waits 0.7 s before speaking
+    and pauses 0.45 s after a line. Up to 3 items wait; a waiting item
+    for the same event is replaced by the newer one.
+  - **Its voice** is the browser's own speech, at the Voice volume. Each
+    faction has its own pitch and speed, and its own system voice
+    where the system has several English ones. A recording can stand
+    in for any line: `AIDE_FILES` in `sounds.js`, keyed by
+    `aide.<faction>.<event>.<n>` (factions `meridian`, `cinder`,
+    `lantern`, `drift`).
+  - **Hot seat:** the aide is the player's at the screen; it starts
+    afresh when the screen changes hands. Watching a replay, there is
+    no aide.
+  - **A reminder** comes every 30 s of a turn when the shot clock is
+    off, and is stale once the turn has passed or anything is moving.
+  - **Shots hit** means damage or destruction by the player's own shot
+    on their own turn; salvaging and failed landings don't count.
+
+## D51. The music — Ours
+- **Date:** 2026-10-25
+- **Spec:** 11 The music, What it listens for, Other music
+- **Decision:**
+  - **Made a bar at a time,** in the browser, at 88 beats a minute in
+    4/4, each bar made just before it plays, so every change falls on
+    a bar's start.
+  - **The game song** has four layers, added as intensity rises: a pad
+    (always), a bass line (1), an arpeggio (2), drums and a busier bass
+    (3). Each mood has its own four-chord progression.
+  - **Excitement** rises with blasts (0.5), explosions (0.25),
+    Interceptor fire (0.3), the player's side's buildings landing
+    (0.15) and knock-outs, each scaled by how loudly it's heard (half
+    in the fog), and halves every 9 s. Intensity is 1, 2 or 3 at 0.15,
+    0.45 and 0.9.
+  - **Mood** goes from −1 to 1, moved 0.35 for each unit of good or bad
+    news: hurting the enemy (by damage, out of 30), destroying or
+    salvaging their units, building, enemy defenses going down; and
+    the reverse. Losing or taking an Outpost counts double. A
+    knock-out counts double again. It drifts halfway back every 25 s;
+    it's upbeat above 0.3, dark below −0.3.
+  - **Other songs:** a menu song; a victory or defeat song on the
+    summary (victory when watching, or if any human at this screen
+    won), four bars, then the menu song. Leaving a game fades its
+    music over 1 s before the menu song starts.
+  - **Recordings** can replace any part: a slot is `music.menu`,
+    `music.victory`, `music.defeat` or `music.game.<intensity>.<mood>`,
+    listed in `MUSIC_FILES` in `src/client/audio/music.js` with its
+    tempo and length in bars. A slot's file starts on a bar and plays
+    through before the music next changes.

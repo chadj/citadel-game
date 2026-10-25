@@ -15,6 +15,7 @@ import { actionFor } from '../core/keys.js';
 import { routeChat, receives, chatLine } from '../core/chat.js';
 import { brainsFor } from '../core/computers.js';
 import { WorldView } from '../render/world.js';
+import { GameSound } from '../audio/game-sound.js';
 import { Hud } from '../ui/hud.js';
 import { GameMenu } from '../ui/game-menu.js';
 import { textField, label, Button } from '../ui/kit.js';
@@ -72,11 +73,17 @@ export class GameScene extends BaseScene {
     this.menu = new GameMenu(this);
     this.chatInput = null;
 
+    this.sound = new GameSound(this);
     session.on((e) => this.onEvent(e));
     this.setupInput();
     this.autoLayout();
     this.hud.showBanner(this.watching ? 'Replay' : this.turnBanner(session.state.turn.player));
     this.ended = false;
+  }
+
+  // Only the menu screens' buttons make sounds (spec 11).
+  get menuSounds() {
+    return false;
   }
 
   get controls() {
@@ -119,6 +126,7 @@ export class GameScene extends BaseScene {
 
   onEvent(e) {
     const s = this.session.state;
+    this.sound.onEvent(e);
     if (e.client) {
       switch (e.type) {
         case 'viewer':
@@ -514,6 +522,7 @@ export class GameScene extends BaseScene {
     }
     this.launchOverride = !!(this.overrideOn || this.overrideKey);
     c.meter.start();
+    this.uiSound('ui.launchPress');
     this.session.pressLaunch(this.viewer);
   }
 
@@ -596,6 +605,7 @@ export class GameScene extends BaseScene {
       const setup = this.session.setup;
       const { to, text: body } = routeChat(text, this.viewer, setup.players, this.session.game.sides);
       this.chat.push({ from: this.viewer, to, text: body, at: this.time.now });
+      this.sound.onEvent({ client: true, type: 'chat' });
     }
     this.closeChat();
   }
@@ -627,6 +637,7 @@ export class GameScene extends BaseScene {
   endGame(winner) {
     if (this.ended) return;
     this.ended = true;
+    this.sound.end();
     const setup = this.session.setup;
     const sides = this.session.game.sides;
     const humans = setup.players.map((p, i) => i).filter((i) => !setup.players[i].computer);
@@ -651,6 +662,7 @@ export class GameScene extends BaseScene {
   }
 
   quit() {
+    this.sound.leave();
     this.scene.start('menu');
   }
 
@@ -682,6 +694,7 @@ export class GameScene extends BaseScene {
     this.cam.update(ms);
     this.world.draw(ms, this.cam, c);
     this.hud.update(ms);
+    this.sound.update(ms);
     this.menu.update(ms);
     const flash = this.world.effects.flash;
     this.flashRect.setSize(this.scale.width, this.scale.height).setFillStyle(0xbfe8ff, flash > 0 ? (flash / 220) * 0.35 : 0);

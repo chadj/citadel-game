@@ -18,6 +18,7 @@ export class ReplaysScene extends BaseScene {
   }
 
   create() {
+    this.audio?.music.play('menu');
     this.heading = this.title('Replays');
     this.page = 0;
     this.status = label(this, '', { size: 13, color: UI.warn, wrap: 500 });

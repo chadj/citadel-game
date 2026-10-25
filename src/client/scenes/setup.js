@@ -40,6 +40,7 @@ export class SetupScene extends BaseScene {
   }
 
   create() {
+    this.audio?.music.play('menu');
     const prefs = this.prefs;
     const host = prefs.host;
     // The maps, then a generated map at the end of the list.

@@ -28,6 +28,7 @@ export class SummaryScene extends BaseScene {
 
   create({ setup, sides, events, replay, watched }) {
     this.replayData = replay;
+    this.playEnding(setup, sides, events, watched);
     const stats = gameStats(setup, sides, events);
     this.heading = this.title('Game summary');
     this.cells = [];
@@ -50,6 +51,17 @@ export class SummaryScene extends BaseScene {
     this.status = label(this, '', { size: 13, color: UI.warn });
     this.back = new Button(this, 'Main menu', { size: 15, onClick: () => this.scene.start('menu') });
     this.autoLayout();
+  }
+
+  // A victory song or a defeat song, then the menu song (spec 11,
+  // Other music). Watching, or with humans on both sides, it's the
+  // victory song.
+  playEnding(setup, sides, events, watched) {
+    const over = events.findLast((e) => e.type === 'gameOver');
+    const winner = over ? over.winner : null;
+    const humans = setup.players.map((p, i) => i).filter((i) => !setup.players[i].computer);
+    const lost = !watched && humans.every((i) => winner === null || sides[i] !== winner);
+    this.audio?.music.play(lost ? 'defeat' : 'victory', { then: 'menu' });
   }
 
   save() {

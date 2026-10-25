@@ -15,6 +15,22 @@ export class BaseScene extends Phaser.Scene {
 
   savePrefs() {
     savePrefs(this.prefs);
+    this.audio?.engine.syncVolumes();
+  }
+
+  // The sound (src/client/audio): { engine, music, voice }.
+  get audio() {
+    return this.registry.get('audio');
+  }
+
+  // Buttons on the menu screens make sounds (spec 11, Menu sounds).
+  get menuSounds() {
+    return true;
+  }
+
+  // Plays an interface sound by name.
+  uiSound(name) {
+    this.audio?.engine.play(name);
   }
 
   get u() {

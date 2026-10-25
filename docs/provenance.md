@@ -178,3 +178,17 @@ entries in `decisions.md` it relies on.
     to look into the fog.
   - **Its own Rovers:** it doesn't avoid leaving them parked against
     its own buildings, or keep a lane open for them.
+
+## Sound and music
+- **Files:** `src/client/core/sound-cues.js` (which events make which
+  sounds, and placement), `src/client/core/aide.js` (the aide's lines
+  and when it speaks), `src/client/core/mood.js` (what the music
+  follows); `src/client/audio/sounds.js` (the table of sounds by
+  name), `src/client/audio/synth.js` (the recipes),
+  `src/client/audio/engine.js`, `src/client/audio/music.js`,
+  `src/client/audio/voice.js`, `src/client/audio/game-sound.js`; the
+  `seekerLocked` event in `src/rules/shots.js` (an event only, not
+  state).
+- **Spec:** 11 (all of it); 10 Options and the game menu (the volume
+  sliders).
+- **Decisions:** D49, D50, D51.

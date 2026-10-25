@@ -56,6 +56,7 @@ export class Button {
     this.bg.on('pointerover', () => {
       this.hover = true;
       this.paint();
+      if (this.enabled && scene.menuSounds) scene.uiSound?.('ui.hover');
       if (this.tip) scene.events.emit('tip', this.tip, this);
     });
     this.bg.on('pointerout', () => {
@@ -78,6 +79,7 @@ export class Button {
       this.down = false;
       this.paint();
       if (!was || !this.enabled) return;
+      if (this.onClick && scene.menuSounds) scene.uiSound?.('ui.click');
       this.onUp?.(true);
       this.onClick?.();
     });
@@ -159,12 +161,14 @@ export class Button {
   }
 }
 
-// A slider from 0 to 100. Dragging changes the value at once.
+// A slider from 0 to 100. Dragging changes the value at once;
+// `onRelease` runs when it's let go.
 export class Slider {
-  constructor(scene, value, onChange, { w = 200, h = 24 } = {}) {
+  constructor(scene, value, onChange, { w = 200, h = 24, onRelease = null } = {}) {
     this.scene = scene;
     this.value = value;
     this.onChange = onChange;
+    this.onRelease = onRelease;
     this.w = w;
     this.h = h;
     this.x = 0;
@@ -189,6 +193,7 @@ export class Slider {
       if (this.dragging && p.isDown) set(p);
     });
     scene.input.on('pointerup', () => {
+      if (this.dragging) this.onRelease?.(this.value);
       this.dragging = false;
     });
   }

@@ -8,6 +8,8 @@
 import { BaseScene } from './base.js';
 import { Button, Slider, label, textField, UI } from '../ui/kit.js';
 import { KEY_ACTIONS, rebind } from '../core/keys.js';
+import { Aide } from '../core/aide.js';
+import { SLIDER_SAMPLES } from '../audio/sounds.js';
 
 const CAMERA_PREFS = [
   ['edgeScroll', 'Edge Scrolling', 'The view scrolls when the pointer reaches the edge of the screen.'],
@@ -24,6 +26,7 @@ export class OptionsScene extends BaseScene {
   }
 
   create() {
+    this.audio?.music.play('menu');
     const prefs = this.prefs;
     this.scrollY = 0;
     this.rows = [];
@@ -86,7 +89,7 @@ export class OptionsScene extends BaseScene {
       const s = new Slider(this, prefs.volumes[key], (v) => {
         prefs.volumes[key] = v;
         this.savePrefs();
-      });
+      }, { onRelease: () => this.sample(key) });
       this.add$(s, 30);
       return s;
     });
@@ -118,6 +121,17 @@ export class OptionsScene extends BaseScene {
     });
     this.refresh();
     this.autoLayout();
+  }
+
+  // Letting go of a volume slider plays a sample of its sound, at the
+  // new volume (spec 11, Volumes).
+  sample(key) {
+    const audio = this.audio;
+    if (!audio) return;
+    const name = SLIDER_SAMPLES[key];
+    if (name === 'music.sample') audio.music.sample();
+    else if (name === 'aide.sample') audio.voice.say(new Aide({ random: () => 0 }).line('yourTurn'), this.prefs.faction);
+    else audio.engine.play(name);
   }
 
   refresh() {
