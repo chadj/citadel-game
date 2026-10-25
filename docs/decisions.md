@@ -263,6 +263,10 @@ on 2026-10-25. Exact numbers chosen during tuning go in
   how long Launch was held, so it isn't limited to one step per tick.
   The square of the launch speed grows evenly with the power, so the
   distance grows about evenly too.
+- **Holding an arrow (user's choice, 2026-10-25):** a press turns the
+  aim 1⅛°. If the key is still held after 60 ms, the aim turns
+  continuously, speeding up from 15° to 150° a second over 900 ms.
+  The 60 ms wait was 250 ms, which felt too long.
 
 ## D23. How the terrain is built from tiles
 - **Date:** 2026-10-25

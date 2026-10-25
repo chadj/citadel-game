@@ -15,7 +15,7 @@ export const MARK_STEP = 3; // the marks show the heading to about 3°
 
 // Holding an arrow: after a short wait, it turns faster and faster, up
 // to about 150° a second.
-export const HOLD_WAIT_MS = 250;
+export const HOLD_WAIT_MS = 60;
 export const RAMP_MS = 900;
 export const START_RATE = 15; // degrees a second
 export const MAX_RATE = 150;
