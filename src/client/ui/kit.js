@@ -21,6 +21,16 @@ export const UI = Object.freeze({
   warn: '#ffb347',
 });
 
+// The screen's pixels per CSS pixel (at most 2). The game draws at the
+// screen's own resolution, so text and lines are sharp; every scene's
+// camera zooms by this, so positions are still in CSS pixels.
+export const DPR = Math.min(2, Math.max(1, globalThis.devicePixelRatio || 1));
+
+// Where a pointer is, in CSS pixels.
+export function pointerAt(p) {
+  return { x: p.x / DPR, y: p.y / DPR };
+}
+
 export function label(scene, text, { size = 14, color = UI.text, bold = false, align = 'left', wrap = 0 } = {}) {
   const t = scene.add.text(0, 0, text, {
     fontFamily: FONT,
@@ -29,6 +39,7 @@ export function label(scene, text, { size = 14, color = UI.text, bold = false, a
     color,
     align,
     wordWrap: wrap ? { width: wrap } : undefined,
+    resolution: DPR,
   });
   return t;
 }
@@ -178,7 +189,7 @@ export class Slider {
     this.knob = scene.add.circle(0, 0, 9, 0xe6edf3);
     this.zone = scene.add.zone(0, 0, w, h).setOrigin(0, 0).setInteractive({ useHandCursor: true });
     const set = (pointer) => {
-      const v = Math.round(Math.max(0, Math.min(1, (pointer.x - this.x) / this.w)) * 100);
+      const v = Math.round(Math.max(0, Math.min(1, (pointerAt(pointer).x - this.x) / this.w)) * 100);
       if (v !== this.value) {
         this.value = v;
         this.layout();

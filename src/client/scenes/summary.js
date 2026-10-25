@@ -80,7 +80,7 @@ export class SummaryScene extends BaseScene {
   }
 
   layout() {
-    const { width, height } = this.scale;
+    const { width, height } = this.view;
     let y = 20;
     this.heading.setPosition(width / 2, y);
     y += 60;

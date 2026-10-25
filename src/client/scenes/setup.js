@@ -342,7 +342,7 @@ export class SetupScene extends BaseScene {
   }
 
   layout() {
-    const { width, height } = this.scale;
+    const { width, height } = this.view;
     const narrow = width < 720;
     const w = Math.min(760, width - 24);
     const x0 = (width - w) / 2;

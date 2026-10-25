@@ -687,6 +687,10 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     less energy put aside coming back.
   - **Effects in the fog** (spec 08: they show through it) glow over
     the black, and their smoke and debris turn pale there.
+  - **Sharp on dense screens:** the game draws at the screen's own
+    resolution (up to 2 pixels per CSS pixel), shown at the window's
+    size; every screen's camera zooms by that, so layouts stay in CSS
+    pixels, and text is drawn at the same resolution.
   - **The fog's edge** (spec 08: soft, not a grid of squares): the
     fog picture has 6 pixels per fog cell; each pixel blends the four
     nearest cells, and the middle 27% of that blend becomes the edge,

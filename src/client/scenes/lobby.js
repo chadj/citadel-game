@@ -105,7 +105,7 @@ export class LobbyScene extends BaseScene {
   }
 
   layout() {
-    const { width, height } = this.scale;
+    const { width, height } = this.view;
     const w = Math.min(760, width - 24);
     const x0 = (width - w) / 2;
     let y = 16;

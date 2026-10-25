@@ -6,7 +6,7 @@
 
 import * as Phaser from 'phaser';
 import { savePrefs } from '../core/prefs.js';
-import { label, uiScale } from '../ui/kit.js';
+import { label, uiScale, DPR } from '../ui/kit.js';
 
 export class BaseScene extends Phaser.Scene {
   get prefs() {
@@ -33,12 +33,19 @@ export class BaseScene extends Phaser.Scene {
     this.audio?.engine.play(name);
   }
 
+  // The screen's size in CSS pixels, which every layout works in.
+  get view() {
+    return { width: this.scale.width / DPR, height: this.scale.height / DPR };
+  }
+
   get u() {
-    return uiScale(this.scale.width, this.scale.height);
+    return uiScale(this.view.width, this.view.height);
   }
 
   // Calls layout() now and whenever the screen's size changes.
   autoLayout() {
+    // The camera zooms by the screen's density (kit.js, DPR).
+    this.cameras.main.setOrigin(0, 0).setZoom(DPR);
     const relayout = () => this.layout?.();
     this.scale.on('resize', relayout);
     this.events.once('shutdown', () => this.scale.off('resize', relayout));

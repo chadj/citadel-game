@@ -17,12 +17,14 @@ import { GameScene } from './scenes/game.js';
 import { SummaryScene } from './scenes/summary.js';
 import { ReplaysScene } from './scenes/replays.js';
 import { LobbyScene } from './scenes/lobby.js';
+import { DPR } from './ui/kit.js';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   backgroundColor: '#0b0f14',
-  scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
+  // Drawn at the screen's own resolution, shown at the window's size.
+  scale: { mode: Phaser.Scale.NONE, width: window.innerWidth * DPR, height: window.innerHeight * DPR, zoom: 1 / DPR },
   dom: { createContainer: true },
   disableContextMenu: true,
   input: { activePointers: 3 },
@@ -30,6 +32,8 @@ const game = new Phaser.Game({
   audio: { noAudio: true },
   scene: [MenuScene, OptionsScene, SetupScene, GameScene, SummaryScene, ReplaysScene, LobbyScene],
 });
+
+window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
 
 const prefs = loadPrefs();
 game.registry.set('prefs', prefs);

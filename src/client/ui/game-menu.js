@@ -86,7 +86,7 @@ export class GameMenu {
   }
 
   layout() {
-    const { width, height } = this.scene.scale;
+    const { width, height } = this.scene.view;
     this.dim.setSize(width, height);
     const w = Math.min(340, width - 24);
     const h = 56 + VOLUMES.length * 56 + 64;

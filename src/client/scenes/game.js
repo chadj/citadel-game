@@ -19,7 +19,7 @@ import { WorldView } from '../render/world.js';
 import { GameSound } from '../audio/game-sound.js';
 import { Hud } from '../ui/hud.js';
 import { GameMenu } from '../ui/game-menu.js';
-import { textField, label, Button } from '../ui/kit.js';
+import { textField, label, Button, pointerAt, DPR } from '../ui/kit.js';
 import { PX } from '../../rules/constants.js';
 import { ITEMS, BUILDING, itemCost } from '../../rules/items.js';
 import { UNIT_KINDS, findUnit, isWorking } from '../../rules/units.js';
@@ -48,7 +48,7 @@ export class GameScene extends BaseScene {
     this.world = new WorldView(this, session, { watching: this.watching });
     this.world.effects.showLaunch = (player) => this.watching || this.views.has(player);
     this.cam = new Camera(this.world.size);
-    this.cam.setView(this.scale.width, this.scale.height);
+    this.cam.setView(this.view.width, this.view.height);
     this.turner = new AimTurner();
     this.overrideOn = false;
     this.chat = [];
@@ -109,7 +109,7 @@ export class GameScene extends BaseScene {
   }
 
   layout() {
-    const { width, height } = this.scale;
+    const { width, height } = this.view;
     this.cam.setView(width, height);
     this.hud.layout();
     this.menu.layout();
@@ -330,24 +330,28 @@ export class GameScene extends BaseScene {
     const input = this.input;
     this.drag = null;
     this.arrows = { left: false, right: false, up: false, down: false };
+    // Pointer positions are in CSS pixels (kit.js, DPR).
     input.on('pointerdown', (p, over) => {
       if (this.menu.open || over.length > 0) return;
-      this.drag = { x: p.x, y: p.y, moved: false, right: p.rightButtonDown() };
+      const at = pointerAt(p);
+      this.drag = { x: at.x, y: at.y, moved: false, right: p.rightButtonDown() };
     });
     input.on('pointermove', (p) => {
-      this.pointer = { x: p.x, y: p.y };
+      const at = pointerAt(p);
+      this.pointer = at;
       const d = this.drag;
       if (!d || !p.isDown) return;
-      if (!d.moved && Math.hypot(p.x - d.x, p.y - d.y) < DRAG_START && !d.right) return;
+      if (!d.moved && Math.hypot(at.x - d.x, at.y - d.y) < DRAG_START && !d.right) return;
       d.moved = true;
       // Grabbing the map: it moves with the pointer.
-      this.cam.scrollBy(-(p.x - p.prevPosition.x), -(p.y - p.prevPosition.y));
+      this.cam.scrollBy(-(p.x - p.prevPosition.x) / DPR, -(p.y - p.prevPosition.y) / DPR);
     });
     input.on('pointerup', (p) => {
       const d = this.drag;
       this.drag = null;
       if (!d || d.moved || d.right || this.menu.open) return;
-      this.clickMap(p.x, p.y);
+      const at = pointerAt(p);
+      this.clickMap(at.x, at.y);
     });
     input.keyboard.on('keydown', (e) => this.keyDown(e));
     input.keyboard.on('keyup', (e) => this.keyUp(e));
@@ -615,10 +619,10 @@ export class GameScene extends BaseScene {
 
   openChat() {
     if (this.chatInput || this.watching) return;
-    const { height } = this.scale;
+    const { height } = this.view;
     this.chatInput = textField(this, '', {
       maxLength: 120,
-      width: Math.min(380, this.scale.width - 40),
+      width: Math.min(380, this.view.width - 40),
       placeholder: 'Message (/team … or @name …)',
       onEnter: (text) => this.sendChat(text),
       onEscape: () => this.closeChat(),
@@ -683,7 +687,7 @@ export class GameScene extends BaseScene {
     } else if (humans.every(won)) text = 'Victory';
     else if (!humans.some(won)) text = 'Defeat';
     else text = humans.map((i) => `${setup.players[i].name}: ${won(i) ? 'Victory' : 'Defeat'}`).join('\n');
-    const { width, height } = this.scale;
+    const { width, height } = this.view;
     // Dims the game, and takes its clicks.
     this.add.rectangle(0, 0, width, height, 0x000000, 0.6).setOrigin(0, 0).setDepth(50).setInteractive();
     const t = label(this, text, { size: 40, bold: true, align: 'center' }).setOrigin(0.5).setDepth(51).setPosition(width / 2, height / 2 - 40);
@@ -723,7 +727,7 @@ export class GameScene extends BaseScene {
     let dx = (this.arrows.right ? 1 : 0) - (this.arrows.left ? 1 : 0);
     let dy = (this.arrows.down ? 1 : 0) - (this.arrows.up ? 1 : 0);
     if (this.prefs.edgeScroll && this.pointer && !this.menu.open) {
-      const { width, height } = this.scale;
+      const { width, height } = this.view;
       if (this.pointer.x < EDGE) dx = -1;
       if (this.pointer.x > width - EDGE) dx = 1;
       if (this.pointer.y < EDGE) dy = -1;
@@ -737,7 +741,7 @@ export class GameScene extends BaseScene {
     this.sound.update(ms);
     this.menu.update(ms);
     const flash = this.world.effects.flash;
-    this.flashRect.setSize(this.scale.width, this.scale.height).setFillStyle(0xbfe8ff, flash > 0 ? (flash / 220) * 0.35 : 0);
+    this.flashRect.setSize(this.view.width, this.view.height).setFillStyle(0xbfe8ff, flash > 0 ? (flash / 220) * 0.35 : 0);
   }
 }
 

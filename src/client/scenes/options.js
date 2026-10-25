@@ -6,7 +6,7 @@
 // Chatter (spec 11). All remembered.
 
 import { BaseScene } from './base.js';
-import { Button, Slider, label, textField, UI } from '../ui/kit.js';
+import { Button, Slider, label, textField, UI, DPR } from '../ui/kit.js';
 import { KEY_ACTIONS, rebind } from '../core/keys.js';
 import { Aide } from '../core/aide.js';
 import { SLIDER_SAMPLES } from '../audio/sounds.js';
@@ -113,7 +113,7 @@ export class OptionsScene extends BaseScene {
     });
     this.input.on('pointermove', (p) => {
       if (!p.isDown || this.waiting) return;
-      const dy = p.prevPosition.y - p.y;
+      const dy = (p.prevPosition.y - p.y) / DPR;
       if (Math.abs(dy) > 0) {
         this.scrollY = Math.max(0, Math.min(this.maxScroll ?? 0, this.scrollY + dy));
         this.layout();
@@ -145,7 +145,7 @@ export class OptionsScene extends BaseScene {
   }
 
   layout() {
-    const { width, height } = this.scale;
+    const { width, height } = this.view;
     const w = Math.min(360, width - 32);
     const x = width / 2 - w / 2;
     let y = 24 - this.scrollY;

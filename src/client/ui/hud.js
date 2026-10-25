@@ -7,7 +7,7 @@
 // the HUD and calls update() every frame; the HUD calls back into the
 // scene for what the player does.
 
-import { Button, label, panel, UI } from './kit.js';
+import { Button, label, panel, UI, pointerAt } from './kit.js';
 import { itemShort, itemName, itemTip, UNIT_NAMES, WIND_NAMES } from './names.js';
 import { LEVELS } from '../core/controls.js';
 import { METER_STEPS, meterShown } from '../core/meter.js';
@@ -115,7 +115,8 @@ export class Hud {
   miniPoint(p) {
     const { x, y, size } = this.mini;
     const map = this.scene.world.size;
-    return { x: ((p.x - x) / size) * map, y: ((p.y - y) / size) * map };
+    const at = pointerAt(p);
+    return { x: ((at.x - x) / size) * map, y: ((at.y - y) / size) * map };
   }
 
   // A brief message, such as a refused launch.
@@ -133,7 +134,7 @@ export class Hud {
   }
 
   layout() {
-    const { width, height } = this.scene.scale;
+    const { width, height } = this.scene.view;
     const narrow = width < 760;
     this.narrow = narrow;
     const barH = narrow ? 64 : 40;

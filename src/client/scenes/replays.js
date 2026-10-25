@@ -83,7 +83,7 @@ export class ReplaysScene extends BaseScene {
   }
 
   layout() {
-    const { width, height } = this.scale;
+    const { width, height } = this.view;
     const w = Math.min(640, width - 24);
     const x = (width - w) / 2;
     let y = 20;

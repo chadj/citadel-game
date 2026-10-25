@@ -27,7 +27,7 @@ export class MenuScene extends BaseScene {
   }
 
   layout() {
-    const { width, height } = this.scale;
+    const { width, height } = this.view;
     const cx = width / 2;
     let y = Math.max(30, height * 0.18);
     this.heading.setPosition(cx, y);
