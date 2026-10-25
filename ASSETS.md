@@ -36,3 +36,6 @@ None shipped. The interface uses the system's own sans-serif font.
 ## Libraries
 - Phaser 4.2.1 (`node_modules/phaser`), MIT license, by Phaser Studio
   Inc. Not an asset, but served with the game.
+- ws 8.18.0 (`node_modules/ws`), MIT license, by Einar Otto Stangvik
+  and contributors. Runs online play's WebSocket on the server; not
+  sent to players.

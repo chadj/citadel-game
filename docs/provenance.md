@@ -205,3 +205,28 @@ entries in `decisions.md` it relies on.
     sends those events until online play does.
   - **The game menu's sliders** change the volume at once but play no
     sample on release (the spec asks this of the Options screen only).
+
+## Online play
+- **Files:** `src/net/protocol.js`; `src/server/lobby.js`,
+  `src/server/net-game.js`, `tools/serve.js` (the WebSocket);
+  `src/client/core/net.js`, `src/client/core/net-session.js`;
+  `src/client/scenes/lobby.js`, the online parts of
+  `src/client/scenes/setup.js` and `src/client/scenes/game.js`;
+  `setupProblem` in `src/client/core/newgame.js` (shared by the setup
+  screen and the server).
+- **Spec:** 12 Ways to play, The lobby, Setting up a game, When the
+  game starts, Every machine plays the same game, Dropping out,
+  Rejoining (before a disconnect), Determinism checks 1, 3, 5 (2, on
+  different machines, is checked live by the server's hash compare);
+  03 Players who disconnect; 10 Chat, Quit; 11 the aide's news of
+  players not responding.
+- **Decisions:** D52.
+- **Known gaps** (to come back to):
+  - **Rejoining after a disconnect** isn't offered (the spec makes
+    rejoining optional).
+  - **No accounts or security:** anyone who can reach the server can
+    list and join its games. It's meant for friends on a network.
+  - **A setup screen chat line** sent just as a player joins can be
+    missed by them.
+  - **Check 2 across devices** hasn't been run on different browsers
+    and machines yet, only two headless Chromes on one machine.

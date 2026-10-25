@@ -8,9 +8,8 @@
 import { BaseScene } from './base.js';
 import { Button, label, textField, UI, panel } from '../ui/kit.js';
 import { MAPS } from '../core/maps.js';
-import { rollSetup, computerLooks, claimColor, teamLayout, generatedMap } from '../core/newgame.js';
+import { rollSetup, computerLooks, claimColor, generatedMap, setupProblem } from '../core/newgame.js';
 import { PERSONALITIES } from '../core/computers.js';
-import { checkSetup } from '../../rules/setup.js';
 import { MAX_PLAYERS, TILE, PX, MAP_SIZES } from '../../rules/constants.js';
 import { PLANETS } from '../../rules/terrain/planets.js';
 import { STYLES, ENERGY_NAMES, TERRAIN_NAMES, WATER_NAMES } from '../../mapgen/generate.js';
@@ -39,8 +38,11 @@ export class SetupScene extends BaseScene {
     super('setup');
   }
 
-  create() {
+  // `data.online`, for an online game's setup screen (spec 12, Setting up
+  // a game): { net, room, you, host }, as the server sent it.
+  create(data = {}) {
     this.audio?.music.play('menu');
+    this.online = data.online ?? null;
     const prefs = this.prefs;
     const host = prefs.host;
     // The maps, then a generated map at the end of the list.
@@ -58,7 +60,7 @@ export class SetupScene extends BaseScene {
     ];
     Object.assign(this.seats[1], computerLooks([this.seats[0]], Math.random));
 
-    this.heading = this.title('New game');
+    this.heading = this.title(this.online ? this.online.room.name : 'New game');
     this.box = panel(this, 0.9);
     this.rows = this.seats.map((seat, i) => this.makeRow(seat, i));
     this.settings = [
@@ -77,9 +79,94 @@ export class SetupScene extends BaseScene {
     }));
     this.problem = label(this, '', { size: 13, color: UI.warn, wrap: 400 });
     this.start = new Button(this, 'Start', { size: 17, onClick: () => this.startGame() });
-    this.back = new Button(this, 'Back', { size: 15, onClick: () => this.scene.start('menu') });
-    this.refresh();
+    this.back = new Button(this, 'Back', { size: 15, onClick: () => this.goBack() });
+    if (this.online) this.goOnline();
+    else this.refresh();
     this.autoLayout();
+  }
+
+  // Online ----------------------------------------------------------------
+
+  goOnline() {
+    const { net } = this.online;
+    this.ready = new Button(this, 'Ready', { size: 15, onClick: () => net.send('ready', { ready: !this.mySeat.ready }) });
+    this.chatLog = [];
+    this.chatText = label(this, '', { size: 13, wrap: 400 });
+    this.chatField = textField(this, '', {
+      maxLength: 120,
+      width: 260,
+      placeholder: 'Chat',
+      onEnter: (v) => {
+        if (v.trim()) net.send('chat', { text: v });
+        this.chatField.input.value = '';
+      },
+    });
+    const offs = [
+      net.on('room', (m) => {
+        this.online = { ...this.online, room: m.room, you: m.you, host: m.host };
+        this.fromRoom();
+      }),
+      net.on('chat', (m) => {
+        this.chatLog.push(m.system ?? `${m.name}: ${m.text}`);
+        this.chatLog = this.chatLog.slice(-6);
+        this.chatText.setText(this.chatLog.join('\n'));
+        this.uiSound('ui.chat');
+      }),
+      net.on('error', (m) => this.problem.setText(m.reason)),
+      net.on('closed', (m) => this.scene.start('lobby', { message: m.reason })),
+      net.on('start', (m) => this.scene.start('game', { online: { net, setup: m.setup, you: m.you, moves: m.moves } })),
+    ];
+    this.events.once('shutdown', () => offs.forEach((off) => off()));
+    this.fromRoom();
+  }
+
+  get isHost() {
+    return !this.online || this.online.host;
+  }
+
+  get mySeat() {
+    return this.online ? this.seats[this.online.you] : this.seats[0];
+  }
+
+  // The setup as the server has it.
+  fromRoom() {
+    const { room } = this.online;
+    const st = room.settings;
+    this.mapIndex = st.map === GENERATED ? MAPS.length : Math.max(0, MAPS.findIndex((m) => m.name === st.map));
+    this.generator = { ...st.generator };
+    this.clock = st.clock;
+    this.wind = st.wind;
+    this.fog = st.fog;
+    // In place: each row's buttons hold on to their seat.
+    room.seats.forEach((s, i) => {
+      const seat = this.seats[i];
+      for (const k of Object.keys(seat)) delete seat[k];
+      Object.assign(seat, s);
+    });
+    this.applying = true;
+    this.refresh();
+    this.applying = false;
+  }
+
+  // What this player changed goes to the server, which sends the setup
+  // back to everyone.
+  sendChanges() {
+    const { net, you } = this.online;
+    if (this.isHost) {
+      net.send('setHost', {
+        settings: { map: this.generated ? GENERATED : MAPS[this.mapIndex].name, generator: this.generator, clock: this.clock, wind: this.wind, fog: this.fog },
+        seats: this.seats.map((s) => ({ kind: s.kind, personality: s.personality, team: s.team })),
+      });
+    }
+    const me = this.seats[you];
+    net.send('setMe', { faction: me.faction, color: me.color });
+  }
+
+  goBack() {
+    if (this.online) {
+      this.online.net.send('leave');
+      this.scene.start('lobby');
+    } else this.scene.start('menu');
   }
 
   makeRow(seat, i) {
@@ -114,7 +201,8 @@ export class SetupScene extends BaseScene {
 
   cycleKind(i) {
     const seat = this.seats[i];
-    const order = i === 0 ? ['human', 'computer'] : ['empty', 'human', 'computer'];
+    if (this.online && (i === 0 || seat.kind === 'human')) return;
+    const order = this.online ? ['empty', 'open', 'computer'] : i === 0 ? ['human', 'computer'] : ['empty', 'human', 'computer'];
     const next = order[(order.indexOf(seat.kind) + 1) % order.length];
     seat.kind = next;
     if (next === 'human') {
@@ -139,7 +227,7 @@ export class SetupScene extends BaseScene {
 
   cycleColor(i) {
     const seat = this.seats[i];
-    const others = this.taken(i).map((s) => s.color);
+    const others = this.taken(i).filter((s) => s.kind !== 'open').map((s) => s.color);
     for (let k = 1; k <= PLAYER_COLORS.length; k++) {
       const c = (seat.color + k) % PLAYER_COLORS.length;
       if (!others.includes(c)) {
@@ -168,32 +256,29 @@ export class SetupScene extends BaseScene {
 
   // What would stop the game starting, or null.
   check() {
-    const players = this.players();
-    const map = MAPS[this.mapIndex];
-    try {
-      checkSetup({
-        map: {},
-        players,
-        order: players.map((_, i) => i),
-        starts: players.map(() => ({ x: 0, y: 0 })),
-        clock: this.clock,
-        wind: { level: this.wind, dir: 0, variation: 0 },
-        fog: this.fog,
-      });
-    } catch (e) {
-      return e.message.split('\n- ').slice(1).join('; ');
-    }
-    // A generated map has start positions for every layout.
-    if (map && !map.starts[players.length]?.[teamLayout(players)]) return `${map.name} has no start positions for these teams.`;
-    return null;
+    return setupProblem({ map: MAPS[this.mapIndex] ?? null, players: this.players(), clock: this.clock, wind: this.wind, fog: this.fog });
   }
 
   refresh() {
+    if (this.online && !this.applying) this.sendChanges();
+    const online = !!this.online;
     this.seats.forEach((seat, i) => {
       const row = this.rows[i];
-      const used = seat.kind !== 'empty';
-      row.kind.setText(seat.kind === 'empty' ? 'Empty seat' : seat.kind === 'human' ? 'Human' : 'Computer');
-      row.name.setVisible(seat.kind === 'human');
+      const used = seat.kind !== 'empty' && seat.kind !== 'open';
+      const kinds = { empty: 'Empty seat', open: 'Open seat', human: 'Human', computer: 'Computer' };
+      let kind = kinds[seat.kind];
+      if (online && seat.kind === 'human') kind = `${seat.name}${i === this.online.you ? ' (you)' : ''}${i > 0 && seat.ready ? ' ✓' : ''}`;
+      row.kind.setText(kind);
+      row.name.setVisible(seat.kind === 'human' && !online);
+      if (online) {
+        // Only the host changes the seats; each player, their own looks.
+        const mine = i === this.online.you;
+        row.kind.setEnabled(this.isHost && seat.kind !== 'human');
+        row.personality.setEnabled(this.isHost);
+        row.team.setEnabled(this.isHost);
+        row.faction.setEnabled(mine || (this.isHost && seat.kind === 'computer'));
+        row.color.setEnabled(mine || (this.isHost && seat.kind === 'computer'));
+      }
       const personality = PERSONALITIES.find((p) => p.id === seat.personality)?.name ?? 'Random';
       row.personality.setVisible(seat.kind === 'computer').setText(personality);
       for (const k of ['faction', 'color', 'team']) row[k].setVisible(used);
@@ -219,13 +304,22 @@ export class SetupScene extends BaseScene {
     this.settings[1].setText(`Shot clock: ${this.clock === 0 ? 'off' : `${this.clock} s`}`);
     this.settings[2].setText(`Wind: ${WINDS[this.wind]}`);
     this.settings[3].setText(`Fog of war: ${this.fog ? 'on' : 'off'}`);
-    const problem = this.check();
+    if (online) {
+      for (const b of [...this.settings, ...this.controls]) b.setEnabled(this.isHost);
+      this.ready.setVisible(!this.isHost).setText(this.mySeat?.ready ? 'Not ready' : 'Ready');
+      this.start.setVisible(this.isHost);
+    }
+    const problem = online ? this.online.room.problem : this.check();
     this.problem.setText(problem ?? '');
     this.start.setEnabled(problem === null);
     this.layout();
   }
 
   startGame() {
+    if (this.online) {
+      this.online.net.send('start');
+      return;
+    }
     if (this.check()) return;
     const prefs = this.prefs;
     // Remembered for next time (spec 12).
@@ -289,6 +383,12 @@ export class SetupScene extends BaseScene {
       y += Math.ceil(this.controls.length / cols) * 38 + 6;
     }
     this.problem.setPosition(x0, y).setWordWrapWidth(w);
+    if (this.online) {
+      y += 30;
+      this.chatText.setPosition(x0, y).setWordWrapWidth(w);
+      this.chatField.setPosition(x0, Math.max(y + 110, height - 110));
+      this.ready.setSize(160, 44).setPosition(width - 16 - 160, height - 60);
+    }
     this.start.setSize(160, 44).setPosition(width - 16 - 160, height - 60);
     this.back.setSize(110, 44).setPosition(16, height - 60);
   }

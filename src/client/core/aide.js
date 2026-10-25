@@ -131,6 +131,8 @@ export function aideKeysFor(e, ctx) {
       return [ours(e.by) ? 'weKnockedOut' : 'knockedOut'];
     case 'disconnect':
       return mine(e.player) ? [] : ['notResponding'];
+    case 'presence':
+      return e.state === 'notResponding' && !mine(e.player) ? ['notResponding'] : [];
     case 'gameOver':
       return [e.winner !== null && e.winner === sides[me] ? 'victory' : 'defeat'];
     case 'built':

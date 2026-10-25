@@ -7,6 +7,7 @@
 
 import { BaseScene } from './base.js';
 import { Session } from '../core/session.js';
+import { NetSession } from '../core/net-session.js';
 import { Camera, wrapDelta } from '../core/camera.js';
 import { PlayerControls } from '../core/controls.js';
 import { AimTurner, moveHeading } from '../core/aim.js';
@@ -35,11 +36,14 @@ export class GameScene extends BaseScene {
     super('game');
   }
 
-  // data: { setup } for a new game, or { replay } to watch one.
+  // data: { setup } for a new game, { replay } to watch one, or
+  // { online: { net, setup, you, moves } } for an online game.
   create(data) {
     this.watching = !!data.replay;
-    const setup = data.replay ? data.replay.setup : data.setup;
-    this.session = new Session(setup, this.watching ? { replay: data.replay } : { computers: brainsFor(setup) });
+    this.online = data.online ?? null;
+    const setup = data.replay ? data.replay.setup : this.online ? this.online.setup : data.setup;
+    if (this.online) this.session = new NetSession(setup, { net: this.online.net, me: this.online.you, moves: this.online.moves });
+    else this.session = new Session(setup, this.watching ? { replay: data.replay } : { computers: brainsFor(setup) });
     const session = this.session;
     this.world = new WorldView(this, session, { watching: this.watching });
     this.world.effects.showLaunch = (player) => this.watching || this.views.has(player);
@@ -64,7 +68,8 @@ export class GameScene extends BaseScene {
     // Each human's controls and camera (spec 10, Hot seat).
     this.views = new Map();
     setup.players.forEach((p, i) => {
-      if (!p.computer || this.watching) this.views.set(i, new PlayerControls(session.game, i));
+      const mine = this.online ? i === this.online.you : !p.computer || this.watching;
+      if (mine) this.views.set(i, new PlayerControls(session.game, i));
     });
     this.viewer = session.viewer;
     this.jumpToView();
@@ -75,10 +80,23 @@ export class GameScene extends BaseScene {
 
     this.sound = new GameSound(this);
     session.on((e) => this.onEvent(e));
+    if (this.online) {
+      // Taking back the seat after the connection dropped: the game
+      // starts again here, caught up.
+      const net = this.online.net;
+      const off = net.on('start', (m) => this.scene.restart({ online: { net, setup: m.setup, you: m.you, moves: m.moves } }));
+      const lost = net.on('disconnected', () => this.hud.message('Lost touch with the server. Trying again…', 4000));
+      this.events.once('shutdown', () => {
+        off();
+        lost();
+        session.close();
+      });
+    }
     this.setupInput();
     this.autoLayout();
     this.hud.showBanner(this.watching ? 'Replay' : this.turnBanner(session.state.turn.player));
     this.ended = false;
+    this.desyncShown = false;
   }
 
   // Only the menu screens' buttons make sounds (spec 11).
@@ -141,6 +159,20 @@ export class GameScene extends BaseScene {
           break;
         case 'refused':
           this.hud.message(capitalize(e.reason));
+          if (this.controls) this.controls.launched = false;
+          break;
+        case 'chat':
+          this.chat.push({ ...e.message, at: this.time.now });
+          break;
+        case 'presence': {
+          const name = this.session.setup.players[e.player].name;
+          const line = { notResponding: `${name} isn't responding.`, back: `${name} is back.`, gone: `${name} was disconnected.` }[e.state];
+          this.chat.push({ system: line, at: this.time.now });
+          break;
+        }
+        case 'desync':
+          if (!this.desyncShown) this.hud.message('This game has gone out of step with the other players\' games.', 6000);
+          this.desyncShown = true;
           break;
         default:
           break;
@@ -604,8 +636,11 @@ export class GameScene extends BaseScene {
     if (text.trim()) {
       const setup = this.session.setup;
       const { to, text: body } = routeChat(text, this.viewer, setup.players, this.session.game.sides);
-      this.chat.push({ from: this.viewer, to, text: body, at: this.time.now });
-      this.sound.onEvent({ client: true, type: 'chat' });
+      if (this.online) this.session.chat(to, body);
+      else {
+        this.chat.push({ from: this.viewer, to, text: body, at: this.time.now });
+        this.sound.onEvent({ client: true, type: 'chat' });
+      }
     }
     this.closeChat();
   }
@@ -615,9 +650,9 @@ export class GameScene extends BaseScene {
     const setup = this.session.setup;
     const sides = this.session.game.sides;
     return this.chat
-      .filter((m) => this.time.now - m.at < 20000 && receives(m, this.viewer, setup.players, sides))
+      .filter((m) => this.time.now - m.at < 20000 && (m.system || receives(m, this.viewer, setup.players, sides)))
       .slice(-6)
-      .map((m) => chatLine(m, this.viewer, setup.players));
+      .map((m) => m.system ?? chatLine(m, this.viewer, setup.players));
   }
 
   // Replays ------------------------------------------------------------------
@@ -663,6 +698,11 @@ export class GameScene extends BaseScene {
 
   quit() {
     this.sound.leave();
+    if (this.online) {
+      this.session.quit();
+      this.scene.start('lobby');
+      return;
+    }
     this.scene.start('menu');
   }
 

@@ -16,6 +16,7 @@ import { SetupScene } from './scenes/setup.js';
 import { GameScene } from './scenes/game.js';
 import { SummaryScene } from './scenes/summary.js';
 import { ReplaysScene } from './scenes/replays.js';
+import { LobbyScene } from './scenes/lobby.js';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -27,7 +28,7 @@ const game = new Phaser.Game({
   input: { activePointers: 3 },
   // The game makes its own sound (src/client/audio).
   audio: { noAudio: true },
-  scene: [MenuScene, OptionsScene, SetupScene, GameScene, SummaryScene, ReplaysScene],
+  scene: [MenuScene, OptionsScene, SetupScene, GameScene, SummaryScene, ReplaysScene, LobbyScene],
 });
 
 const prefs = loadPrefs();

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Chad Johnson
 
-// The main menu: a new game (hot seat or against computers), replays,
-// and the options (spec 12, Ways to play, Watching a replay; spec 10,
-// Options). Online play comes later.
+// The main menu: online play, a new game on this machine (hot seat or
+// against computers), replays, and the options (spec 12, Ways to play,
+// Watching a replay; spec 10, Options).
 
 import { BaseScene } from './base.js';
 import { Button, label, UI } from '../ui/kit.js';
@@ -18,11 +18,11 @@ export class MenuScene extends BaseScene {
     this.heading = this.title('Lunar Citadel');
     this.sub = label(this, 'Artillery and base building on a wrapping world', { size: 15, color: UI.dimText }).setOrigin(0.5, 0);
     this.buttons = [
+      new Button(this, 'Play online', { onClick: () => this.scene.start('lobby'), size: 18 }),
       new Button(this, 'New game', { onClick: () => this.scene.start('setup'), size: 18 }),
       new Button(this, 'Replays', { onClick: () => this.scene.start('replays'), size: 18 }),
       new Button(this, 'Options', { onClick: () => this.scene.start('options'), size: 18 }),
     ];
-    this.note = label(this, 'Online play is on its way.', { size: 13, color: UI.dimText }).setOrigin(0.5, 0);
     this.autoLayout();
   }
 
@@ -38,6 +38,5 @@ export class MenuScene extends BaseScene {
       b.setSize(w, 46).setPosition(cx - w / 2, y);
       y += 58;
     }
-    this.note.setPosition(cx, y + 10);
   }
 }

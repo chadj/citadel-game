@@ -973,3 +973,61 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     listed in `MUSIC_FILES` in `src/client/audio/music.js` with its
     tempo and length in bars. A slot's file starts on a bar and plays
     through before the music next changes.
+
+## D52. Online play — Ours
+- **Date:** 2026-10-25
+- **Spec:** 12 Ways to play (online), The lobby, Setting up a game,
+  When the game starts, Every machine plays the same game, Dropping
+  out, Rejoining, Determinism checks; 03 Players who disconnect
+- **Decision:**
+  - **One server** (`npm start`) serves the game and runs the lobby
+    and every online game over a WebSocket at `/net` (the `ws`
+    library). Messages are JSON; `src/net/protocol.js` lists them.
+  - **The server orders the moves.** A player's move goes to the
+    server, which checks it with the rules (only the turn's player,
+    only for themselves), numbers it and sends it to everyone, the
+    sender included. Every machine plays moves only from the server,
+    in order, each once the previous one has played out. A player's
+    own move is played when it comes back, not before.
+  - **The server runs the game too,** settling each move at once, and
+    keeps the state hash after every move. Each machine sends its hash
+    once a move has played out; a different one warns every player
+    that the game has gone out of step, and is logged.
+  - **The random choices at the start** (order, start positions, wind,
+    a generated map) are rolled once on the server; the whole setup,
+    map included, goes to every player. So a map a player doesn't
+    have is always sent.
+  - **Computers think on the server**, in slices so other games carry
+    on, and their moves are sent like anyone's. Each machine waits
+    1.5 s into a computer's turn before playing its move.
+  - **The shot clock** is kept by the turn's player's own machine: when
+    its time is up, it sends the timeout move. The others show the
+    clock running from when the turn started on their screen. The
+    server steps in with a timeout only if none has come 10 s after it
+    should have (allowing for how long the move before takes to play
+    out), so a slow connection never shortens a turn.
+  - **Losing touch:** machines ping every 5 s. After 60 s of silence
+    the others are told the player isn't responding (chat line, aide,
+    and a note by the order of play); after 120 s the server sends a
+    disconnect move. Quitting sends it at once. A disconnect is a move
+    like any other, so every machine and the replay have it at the
+    same point.
+  - **Rejoining:** offered only before the player is disconnected. A
+    machine keeps a token for the tab; reconnecting (by itself after a
+    dropped connection, or through Play online after a reload) takes
+    back the seat, and the game is caught up at once from the moves so
+    far, without playing out the shots. A disconnected player can't
+    come back.
+  - **The spec's Choice** to let the remaining side claim victory is
+    not offered: they knock out the undefended Citadels.
+  - **The setup screen online:** the host changes the seats (empty,
+    open for a player, or a computer), teams, the map and the
+    settings; each player changes only their own faction and color.
+    The server decides colors in the order requests arrive. The host's
+    Start is enabled when every open seat is filled and every other
+    human is Ready. The host leaving closes the game; another player
+    leaving opens their seat again.
+  - **Lobby listing:** "joined" counts humans who joined plus
+    computers; "needed" counts the seats in use.
+  - **Chat** goes through the server, which sends each message only to
+    the players who get it.

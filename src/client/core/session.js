@@ -251,6 +251,12 @@ export class Session {
     this.move = null;
   }
 
+  // Whether a turn's player takes the screen: in hot seat, every human
+  // does when their turn starts.
+  takesScreen(player) {
+    return !this.watching && !this.isComputer(player) && player !== this.viewer;
+  }
+
   clientEvent(event) {
     const e = { ...event, client: true };
     for (const fn of this.listeners) fn(e);
@@ -264,7 +270,7 @@ export class Session {
       if (e.type === 'turnStart') {
         this.startTurn();
         for (const brain of Object.values(this.computers)) brain.observe?.(this.game);
-        if (!this.watching && !this.isComputer(e.player) && e.player !== this.viewer) {
+        if (this.takesScreen(e.player)) {
           // The screen changes hands first, so the new turn is shown
           // from its player's view.
           this.viewer = e.player;

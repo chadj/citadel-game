@@ -10,6 +10,7 @@
 import { MEDIUM_VARIATION, WIND_MEDIUM, FACTIONS, COLORS } from '../../rules/constants.js';
 import { mapData } from './maps.js';
 import { generateMap } from '../../mapgen/generate.js';
+import { checkSetup } from '../../rules/setup.js';
 
 // The team layout: sizes of the teams of two or more, smallest first.
 export function teamLayout(players) {
@@ -131,4 +132,25 @@ export function claimColor(players, me, wanted, random) {
 // every machine and every replay gets it.
 export function generatedMap(settings, random) {
   return generateMap(settings, Math.floor(random() * 4294967296), 'Generated map');
+}
+
+// What would stop a game with these choices starting, or null. `map` is
+// a map that comes with the game, or null for a generated one (which
+// has start positions for every layout).
+export function setupProblem({ map, players, clock, wind, fog }) {
+  try {
+    checkSetup({
+      map: {},
+      players,
+      order: players.map((_, i) => i),
+      starts: players.map(() => ({ x: 0, y: 0 })),
+      clock,
+      wind: { level: wind, dir: 0, variation: 0 },
+      fog,
+    });
+  } catch (e) {
+    return e.message.split('\n- ').slice(1).join('; ');
+  }
+  if (map && !map.starts[players.length]?.[teamLayout(players)]) return `${map.name} has no start positions for these teams.`;
+  return null;
 }

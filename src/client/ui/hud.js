@@ -266,7 +266,12 @@ export class Hud {
       }
     }
     const out = setup.players.map((p, i) => [p, s.players[i]]).filter(([, st]) => st.mark);
-    this.outText.setText(out.map(([p, st]) => `${p.name} ${st.mark === 'out' ? 'is out' : 'has left'}`).join(' · '));
+    const notes = out.map(([p, st]) => `${p.name} ${st.mark === 'out' ? 'is out' : 'has left'}`);
+    // Online, a player who has gone silent (spec 12, Losing touch).
+    for (const [player, state] of session.presence ?? []) {
+      if (state === 'notResponding') notes.push(`${setup.players[player].name} isn't responding`);
+    }
+    this.outText.setText(notes.join(' · '));
 
     // The shot clock: how much of the turn's time has gone.
     const clock = session.clock();
