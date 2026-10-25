@@ -2,15 +2,34 @@
 // Copyright (C) 2026 Chad Johnson
 
 // Computer players as the client sees them: the personalities the setup
-// screen offers, and a brain for each computer in a game (spec 09). A
-// brain is { think(game, player) → move }.
-//
-// Until the computer players are written, a computer passes.
+// screen offers, hardest first, plus a random choice; and a brain for
+// each computer in a game (spec 09; src/ai).
 
-export const PERSONALITIES = Object.freeze([{ id: 'random', name: 'Random' }]);
+import { Brain } from '../../ai/brain.js';
+import { PERSONALITIES as LIST, RANDOM } from '../../ai/personalities.js';
+import { MAPS } from './maps.js';
 
-export function makeBrain() {
-  return { think: (game, player) => ({ type: 'pass', player }) };
+export const PERSONALITIES = Object.freeze([
+  { id: RANDOM, name: 'Random' },
+  ...LIST.map(({ id, name }) => ({ id, name })),
+]);
+
+// The start positions a map offers, in every layout: the Citadels stand
+// on some of them (spec 09, Finding the enemy's Citadel).
+export function mapStarts(name) {
+  const map = MAPS.find((m) => m.name === name);
+  if (!map) return [];
+  const all = new Map();
+  for (const layouts of Object.values(map.starts)) {
+    for (const groups of Object.values(layouts)) {
+      for (const p of groups.flat()) all.set(`${p.x},${p.y}`, p);
+    }
+  }
+  return [...all.values()];
+}
+
+export function makeBrain(personality, player, setup) {
+  return new Brain(personality, player, { starts: mapStarts(setup.map.name) });
 }
 
 // Each computer player's brain, for a game's setup.

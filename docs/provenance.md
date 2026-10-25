@@ -146,3 +146,12 @@ entries in `decisions.md` it relies on.
   seat, against the computer), Setting up a game, When the game
   starts, Replays; Appendix A 01 (the displayed aim and meter).
 - **Decisions:** D16, D22, D28, D38, D39, D40, D41.
+
+## Computer players
+- **Files:** `src/ai/personalities.js`, `src/ai/belief.js`,
+  `src/ai/aim.js`, `src/ai/value.js`, `src/ai/candidates.js`,
+  `src/ai/brain.js`; `src/client/core/computers.js`,
+  `src/client/core/session.js` (thinking in slices).
+- **Spec:** 09 (all of it); 12 Computer players (the personality
+  choice); 01 (the flight model it aims with).
+- **Decisions:** D43, D44, D45.

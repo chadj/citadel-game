@@ -703,3 +703,80 @@ on 2026-10-25. Exact numbers chosen during tuning go in
 - **Answer (user):** The chat key opens the line. While typing, only
   Enter sends, and the chat key types its letter. Esc drops the line.
   Proposed wording is in `docs/spec-changes.md`.
+
+## D43. Computers work out which Outpost is the Citadel — Ours
+- **Date:** 2026-10-25
+- **Spec:** 09 Playing fair (Choice), Finding the enemy's Citadel
+- **Decision:** A computer isn't told. It plans on a copy of the game
+  in which no enemy unit is marked as a Citadel, and keeps its own
+  odds for each enemy Outpost it knows of:
+  - an Outpost it saw a conduit run into was built, so it isn't one;
+  - an Outpost destroyed while its owner played on wasn't one;
+  - an Outpost within about 60 px of one of the map's start positions
+    is much likelier, and one first seen in the first two rounds
+    likelier still;
+  - some of the odds stay with Outposts it hasn't seen yet: more with
+    fog on.
+  To let its copy of the game play on as the real one does, each
+  enemy's likeliest Outpost stands in for its Citadel there; the odds,
+  not the stand-in, decide what a hit on it is worth, and the bonus
+  the copy pays for the stand-in isn't counted.
+
+## D44. The personalities — Ours
+- **Date:** 2026-10-25
+- **Spec:** 09 Personalities
+- **Decision:** Seven, hardest first, plus Random. Aim is how far the
+  heading may stray either way, in degrees; power is how far the power
+  may stray either way, as a share of the launcher's range (the full
+  power scale); the error is even across that span.
+
+  | Name | Aim | Power | Judgment | Whims | Style |
+  |---|---|---|---|---|---|
+  | Warden | 0° | 0 | 1.0 | 3% | Defender |
+  | Forge | 3° | 3% | 0.9 | 7% | Builder |
+  | Lancer | 6° | 6% | 0.8 | 12% | Aggressor |
+  | Mason | 11° | 10% | 0.65 | 20% | Builder |
+  | Sentry | 17° | 14% | 0.5 | 28% | Defender |
+  | Raider | 25° | 19% | 0.35 | 38% | Aggressor |
+  | Drifter | 35° | 25% | 0.2 | 50% | Builder |
+
+  - **Judgment** sets how many of the candidate moves it weighs (40% to
+    all of them), how much noise its weighing has, and how many rounds
+    ahead it counts income (3 to 8, fewer as the game goes on).
+  - **Style** weighs the parts of a position: a Builder counts economy
+    at 1.35, an Aggressor attack at 1.35, a Defender the threats to it
+    at 1.4.
+  - **A whim** picks another of the moves it weighed at random, as
+    long as that isn't clearly worse than passing.
+  - **Getting its eye in:** a shot exactly like its last one, from the
+    same launcher, strays by 60%, 30%, 10%, then none of its error.
+
+## D45. How computers think — Ours
+- **Date:** 2026-10-25
+- **Spec:** 09 (Taking part, Playing fair, Choosing what to do, Making
+  a shot)
+- **Decision:**
+  - **What it knows.** It looks at the game at the start of every turn,
+    through its side's fog, and remembers enemy units and conduit
+    nodes it has seen until it sees their place empty.
+  - **How it chooses.** It lists candidate moves for each working
+    launcher: buildings in a ring and toward vents, unseen starts and
+    the enemy; defenses beside its threatened buildings; weapons at the
+    enemy units and conduits it knows of. It aims each with the game's
+    own flight rules. It plays each one out on its copy of the game,
+    with the game's own rules, and scores where it leaves it: energy
+    next round up to the cap, its units less the enemy's (what burns
+    is counted by the burn itself), what its launchers reach, the
+    threats to its units less what covers them, Rover lines, Worms,
+    blasts from its own Extractors and Charges, and with fog on, how
+    much it sees. It plays the best few out again with its own error,
+    and keeps the average.
+  - **Passing.** It passes when nothing beats keeping the energy.
+  - **Not getting stuck.** An attack on a target that did it no harm
+    counts for less each further time; a move repeated more than three
+    times running counts for less.
+  - **Timing.** It waits 1.5 s at the start of its turn, thinks in
+    slices of about 8 ms a frame, and makes the best move it has after
+    25 s.
+  - **Its aim.** If its error would put a building's heading in the
+    conduit warning, it aims again, as a human would.

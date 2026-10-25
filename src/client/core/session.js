@@ -22,8 +22,13 @@ export const TICK_MS = 1000 / TICKS_PER_SECOND;
 // The end of the round is announced before Rovers drive (spec 03, What
 // players see): they wait this long after the announcement appears.
 export const ROUND_ANNOUNCE_MS = 1200;
-// A computer's turn shows on screen at least this long.
-export const COMPUTER_MIN_MS = 1000;
+// A computer waits about 1.5 seconds when its turn starts, so players
+// can see whose turn it is (spec 09, Playing fair).
+export const COMPUTER_MIN_MS = 1500;
+// It thinks in slices of about this much of each frame, and makes the
+// best move it has at its limit (spec 09: about 20 to 30 seconds).
+export const THINK_SLICE_MS = 8;
+export const COMPUTER_LIMIT_MS = 25000;
 // With the clock off, a reminder about every 30 seconds (spec 03).
 export const REMINDER_MS = 30000;
 // A replay plays each move after this pause.
@@ -33,7 +38,10 @@ const MAX_TICKS_PER_ADVANCE = 8;
 
 export class Session {
   // `computers` maps a computer player's index to its brain:
-  // { think(game, player) → move }. `replay` plays a replay back.
+  // { think(game, player) → move }, and optionally
+  // { begin(game, player) → { work(ms) → move or null, best() → move },
+  //   observe(game) } to think in slices and to look at every turn.
+  // `replay` plays a replay back.
   constructor(setup, { computers = {}, replay = null } = {}) {
     this.setup = setup;
     this.game = createGame(setup);
@@ -205,10 +213,20 @@ export class Session {
   advanceComputer(ms) {
     if (this.paused) return;
     this.waitMs += ms;
-    if (this.waitMs < COMPUTER_MIN_MS) return;
     const player = this.game.state.turn.player;
     const brain = this.computers[player];
-    const move = brain ? brain.think(this.game, player) : { type: 'pass', player };
+    if (!this.move) {
+      if (!brain) this.move = { type: 'pass', player };
+      else if (!brain.begin) this.move = brain.think(this.game, player);
+      else {
+        this.thinker ??= brain.begin(this.game, player);
+        this.move = this.thinker.work(THINK_SLICE_MS);
+        if (!this.move && this.waitMs >= COMPUTER_LIMIT_MS) this.move = this.thinker.best();
+      }
+    }
+    if (!this.move || this.waitMs < COMPUTER_MIN_MS) return;
+    const move = this.move;
+    this.move = null;
     const result = this.play(move);
     // A computer whose move is refused passes, so the game goes on.
     if (!result.ok) this.play({ type: 'pass', player });
@@ -229,6 +247,8 @@ export class Session {
     this.warned = false;
     this.reminders = 0;
     this.waitMs = 0;
+    this.thinker = null;
+    this.move = null;
   }
 
   clientEvent(event) {
@@ -243,6 +263,7 @@ export class Session {
       const e = events[this.seen++];
       if (e.type === 'turnStart') {
         this.startTurn();
+        for (const brain of Object.values(this.computers)) brain.observe?.(this.game);
         if (!this.watching && !this.isComputer(e.player) && e.player !== this.viewer) {
           // The screen changes hands first, so the new turn is shown
           // from its player's view.
