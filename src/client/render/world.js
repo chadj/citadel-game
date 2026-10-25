@@ -150,6 +150,9 @@ export class WorldView {
     this.effects.draw(this.gfx.fx, copies);
     if (controls) this.drawTargeting(copies, controls);
     this.drawOverlays(copies);
+    // The fog changes every tick while anything flies (shots see
+    // further the higher they are), not only when something happens.
+    if (this.game.state.tick !== this.fogTick) this.fogDirty = true;
     if (this.fogDirty) this.updateFog();
   }
 
@@ -175,6 +178,7 @@ export class WorldView {
 
   updateFog() {
     this.fogDirty = false;
+    this.fogTick = this.game.state.tick;
     const fog = this.game.state.fog;
     if (!fog) return;
     const counts = fog.counts[this.side(this.viewer)];
