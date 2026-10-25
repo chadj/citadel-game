@@ -662,7 +662,7 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     22 px of one of the player's launchers selects it.
   - **Watch Cam** ends where it last saw the shot.
   - **The end of a round** is announced, and Rovers start driving
-    1.2 s later. A computer's turn shows for at least 1 s.
+    1.2 s later. A computer's turn shows for at least 1.5 s (D45).
   - **The game menu pauses** a local game only when every other player
     is a computer, as spec 10 says; a hot-seat game with two humans
     doesn't pause.

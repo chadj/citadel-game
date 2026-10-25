@@ -155,3 +155,20 @@ entries in `decisions.md` it relies on.
 - **Spec:** 09 (all of it); 12 Computer players (the personality
   choice); 01 (the flight model it aims with).
 - **Decisions:** D43, D44, D45.
+- **Known gaps** (spec 09 not yet covered):
+  - **Pontoons (required, with M8).** A computer never launches a
+    Pontoon, so it can't cross water; "Water needs a Pontoon first,
+    where the conduit will cross" (Planning ahead). Some maps will
+    fence a player in by water, so this must be done before those
+    maps ship. Also: attacking enemy Pontoons on purpose
+    (Opportunities; Hitting the network) rather than only when the
+    1-move search happens to find it.
+  - **Planning ahead:** it looks one move ahead; it doesn't plan a
+    chain of Outposts toward a goal, or save a round ahead for a
+    particular level 7 launch.
+  - **Bait:** it doesn't fire a cheap shot to draw an Interceptor's
+    missile and attack on its next turn.
+  - **Scouting with shots:** it doesn't use Scatter Shells or Charges
+    to look into the fog.
+  - **Its own Rovers:** it doesn't avoid leaving them parked against
+    its own buildings, or keep a lane open for them.
