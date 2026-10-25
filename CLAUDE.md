@@ -51,5 +51,9 @@ negotiable.
 
 ## Conventions
 - Tests: `npm test` (Node's built-in runner).
-- License: <to be chosen by the user>; every source file carries the
-  header.
+- License: AGPL-3.0-or-later (`LICENSE`), chosen for now; the user may
+  change it later. Every source file carries the header:
+  ```js
+  // SPDX-License-Identifier: AGPL-3.0-or-later
+  // Copyright (C) 2026 Chad Johnson
+  ```
