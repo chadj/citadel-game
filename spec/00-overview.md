@@ -207,7 +207,8 @@ removes a point of armor. A unit with no armor left is destroyed.
   burns away after it. Only their free-standing units are left.
 - The game ends when only one team or player is left. That team or
   player wins.
-- If no human players are left in the game, it ends with no winner.
+- If two or more teams are left but no human player is, the game ends
+  with no winner.
 - A player who disconnects stops taking turns. Their Citadel stays on
   the map, and it still counts until someone destroys it.
 

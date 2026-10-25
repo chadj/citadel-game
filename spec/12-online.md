@@ -176,8 +176,8 @@ From then on (chapter 03):
 So the others have to finish off a player who has left. The game goes on
 until only one side is left.
 
-- **If no connected human has a Citadel left**, the game ends with no
-  winner.
+- **If two or more sides are left but no connected human has a Citadel**,
+  the game ends with no winner.
 - **Choice:** an implementation may let the remaining side claim victory
   when every opponent has left, so they don't have to knock out an
   undefended Citadel.
