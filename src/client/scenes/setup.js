@@ -8,15 +8,31 @@
 import { BaseScene } from './base.js';
 import { Button, label, textField, UI, panel } from '../ui/kit.js';
 import { MAPS } from '../core/maps.js';
-import { rollSetup, computerLooks, claimColor, teamLayout } from '../core/newgame.js';
+import { rollSetup, computerLooks, claimColor, teamLayout, generatedMap } from '../core/newgame.js';
 import { PERSONALITIES } from '../core/computers.js';
 import { checkSetup } from '../../rules/setup.js';
-import { MAX_PLAYERS, TILE, PX } from '../../rules/constants.js';
+import { MAX_PLAYERS, TILE, PX, MAP_SIZES } from '../../rules/constants.js';
+import { PLANETS } from '../../rules/terrain/planets.js';
+import { STYLES, ENERGY_NAMES, TERRAIN_NAMES, WATER_NAMES } from '../../mapgen/generate.js';
 import { PLAYER_COLORS, PLAYER_COLOR_NAMES, FACTION_NAMES } from '../render/palette.js';
 
 const CLOCKS = [0, 15, 30, 60];
 const WINDS = ['None', 'Light', 'Medium', 'Strong'];
 const TEAMS = [null, 'A', 'B', 'C'];
+const GENERATED = 'Generated';
+const RANDOM = 'random';
+const STEPS = [0, 1, 2, 3, 4];
+// The generator's controls (spec 02, Generated maps): each cycles
+// through its values, then Random.
+const CONTROLS = [
+  ['style', 'Style', STYLES, (v) => (v === 'mirror' ? 'Mirrored' : 'Grown')],
+  ['tiles', 'Size', MAP_SIZES, (v) => `${(v * TILE) / PX} px`],
+  ['planet', 'Planet', Object.keys(PLANETS), (v) => v[0].toUpperCase() + v.slice(1)],
+  ['energy', 'Energy', STEPS, (v) => ENERGY_NAMES[v]],
+  ['terrain', 'Terrain', STEPS, (v) => TERRAIN_NAMES[v]],
+  ['water', 'Water', STEPS, (v) => WATER_NAMES[v]],
+];
+const DEFAULT_GENERATOR = { style: RANDOM, tiles: RANDOM, planet: RANDOM, energy: RANDOM, terrain: RANDOM, water: RANDOM };
 
 export class SetupScene extends BaseScene {
   constructor() {
@@ -26,7 +42,9 @@ export class SetupScene extends BaseScene {
   create() {
     const prefs = this.prefs;
     const host = prefs.host;
-    this.mapIndex = Math.max(0, MAPS.findIndex((m) => m.name === host.map));
+    // The maps, then a generated map at the end of the list.
+    this.mapIndex = host.map === GENERATED ? MAPS.length : Math.max(0, MAPS.findIndex((m) => m.name === host.map));
+    this.generator = { ...DEFAULT_GENERATOR, ...host.generator };
     this.clock = CLOCKS.includes(host.clock) ? host.clock : 60;
     this.wind = host.wind ?? 0;
     this.fog = host.fog ?? true;
@@ -43,11 +61,19 @@ export class SetupScene extends BaseScene {
     this.box = panel(this, 0.9);
     this.rows = this.seats.map((seat, i) => this.makeRow(seat, i));
     this.settings = [
-      new Button(this, '', { size: 13, onClick: () => this.cycle('mapIndex', MAPS.length) }),
+      new Button(this, '', { size: 13, onClick: () => this.cycle('mapIndex', MAPS.length + 1) }),
       new Button(this, '', { size: 13, onClick: () => this.cycleList('clock', CLOCKS) }),
       new Button(this, '', { size: 13, onClick: () => this.cycle('wind', WINDS.length) }),
       new Button(this, '', { size: 13, onClick: () => { this.fog = !this.fog; this.refresh(); } }),
     ];
+    this.controls = CONTROLS.map(([key, , values]) => new Button(this, '', {
+      size: 13,
+      onClick: () => {
+        const list = [...values, RANDOM];
+        this.generator[key] = list[(list.indexOf(this.generator[key]) + 1) % list.length];
+        this.refresh();
+      },
+    }));
     this.problem = label(this, '', { size: 13, color: UI.warn, wrap: 400 });
     this.start = new Button(this, 'Start', { size: 17, onClick: () => this.startGame() });
     this.back = new Button(this, 'Back', { size: 15, onClick: () => this.scene.start('menu') });
@@ -135,6 +161,10 @@ export class SetupScene extends BaseScene {
     }));
   }
 
+  get generated() {
+    return this.mapIndex === MAPS.length;
+  }
+
   // What would stop the game starting, or null.
   check() {
     const players = this.players();
@@ -152,7 +182,8 @@ export class SetupScene extends BaseScene {
     } catch (e) {
       return e.message.split('\n- ').slice(1).join('; ');
     }
-    if (!map.starts[players.length]?.[teamLayout(players)]) return `${map.name} has no start positions for these teams.`;
+    // A generated map has start positions for every layout.
+    if (map && !map.starts[players.length]?.[teamLayout(players)]) return `${map.name} has no start positions for these teams.`;
     return null;
   }
 
@@ -174,14 +205,23 @@ export class SetupScene extends BaseScene {
       }
     });
     const map = MAPS[this.mapIndex];
-    const px = (map.rows.length * TILE) / PX;
-    this.settings[0].setText(`Map: ${map.name} (${px} px, ${map.players} players)`);
+    if (map) {
+      const px = (map.rows.length * TILE) / PX;
+      this.settings[0].setText(`Map: ${map.name} (${px} px, ${map.players} players)`);
+    } else {
+      this.settings[0].setText('Map: Generated');
+    }
+    CONTROLS.forEach(([key, name, , show], k) => {
+      const v = this.generator[key];
+      this.controls[k].setVisible(this.generated).setText(`${name}: ${v === RANDOM ? 'Random' : show(v)}`);
+    });
     this.settings[1].setText(`Shot clock: ${this.clock === 0 ? 'off' : `${this.clock} s`}`);
     this.settings[2].setText(`Wind: ${WINDS[this.wind]}`);
     this.settings[3].setText(`Fog of war: ${this.fog ? 'on' : 'off'}`);
     const problem = this.check();
     this.problem.setText(problem ?? '');
     this.start.setEnabled(problem === null);
+    this.layout();
   }
 
   startGame() {
@@ -194,10 +234,14 @@ export class SetupScene extends BaseScene {
       prefs.faction = me.faction;
       prefs.color = me.color;
     }
-    prefs.host = { map: MAPS[this.mapIndex].name, clock: this.clock, wind: this.wind, fog: this.fog };
+    prefs.host = {
+      map: this.generated ? GENERATED : MAPS[this.mapIndex].name, generator: this.generator, clock: this.clock, wind: this.wind, fog: this.fog,
+    };
     this.savePrefs();
+    // The host generates the map (spec 02, Generated maps).
+    const map = this.generated ? generatedMap(this.generator, Math.random) : MAPS[this.mapIndex];
     const setup = rollSetup({
-      map: MAPS[this.mapIndex], players: this.players(), clock: this.clock, wind: this.wind, fog: this.fog,
+      map, players: this.players(), clock: this.clock, wind: this.wind, fog: this.fog,
     });
     this.scene.start('game', { setup });
   }
@@ -235,6 +279,14 @@ export class SetupScene extends BaseScene {
       b.setSize(sw, 32).setPosition(x0 + col * (sw + 6), y + r * 38);
     });
     y += (narrow ? 4 : 2) * 38 + 6;
+    if (this.generated) {
+      const cols = narrow ? 2 : 3;
+      const cw = (w - 6 * (cols - 1)) / cols;
+      this.controls.forEach((b, k) => {
+        b.setSize(cw, 32).setPosition(x0 + (k % cols) * (cw + 6), y + Math.floor(k / cols) * 38);
+      });
+      y += Math.ceil(this.controls.length / cols) * 38 + 6;
+    }
     this.problem.setPosition(x0, y).setWordWrapWidth(w);
     this.start.setSize(160, 44).setPosition(width - 16 - 160, height - 60);
     this.back.setSize(110, 44).setPosition(16, height - 60);

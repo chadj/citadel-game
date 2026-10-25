@@ -30,7 +30,7 @@ export function defaultPrefs() {
     volumes: { effects: 80, music: 60, aide: 80, ui: 70 },
     aideChatter: true,
     // The host's settings (spec 12).
-    host: { map: null, clock: 60, wind: 0, fog: true },
+    host: { map: null, generator: null, clock: 60, wind: 0, fog: true },
   };
 }
 

@@ -47,6 +47,16 @@ entries in `decisions.md` it relies on.
   Pontoons (the terrain change only), Energy Vents (sizes only).
 - **Decisions:** D4, D17 (map sizes), D23, D24, D26.
 
+## The map generator and the maps that come with the game
+- **Files:** `src/mapgen/generate.js`, `src/maps/index.js`,
+  `src/maps/handmade.js`, `src/maps/generated.js` (written by
+  `tools/make-maps.js`); the setup screen's generator controls
+  (`src/client/scenes/setup.js`, `src/client/core/newgame.js`).
+- **Spec:** 02 Start positions, Maps that come with the game,
+  Generated maps; 12 What the host chooses (the map list), When the
+  game starts (a generated map).
+- **Decisions:** D16, D26, D41, D46, D47.
+
 ## Flight and wind
 - **Files:** `src/rules/flight.js`, `src/rules/constants.js` (flight and
   wind values), `tools/calibrate.js`, `test/helpers/flight-cases.js`
@@ -154,18 +164,14 @@ entries in `decisions.md` it relies on.
   `src/client/core/session.js` (thinking in slices).
 - **Spec:** 09 (all of it); 12 Computer players (the personality
   choice); 01 (the flight model it aims with).
-- **Decisions:** D43, D44, D45.
+- **Decisions:** D43, D44, D45, D48 (crossing water).
 - **Known gaps** (spec 09 not yet covered):
-  - **Pontoons (required, with M8).** A computer never launches a
-    Pontoon, so it can't cross water; "Water needs a Pontoon first,
-    where the conduit will cross" (Planning ahead). Some maps will
-    fence a player in by water, so this must be done before those
-    maps ship. Also: attacking enemy Pontoons on purpose
-    (Opportunities; Hitting the network) rather than only when the
-    1-move search happens to find it.
-  - **Planning ahead:** it looks one move ahead; it doesn't plan a
-    chain of Outposts toward a goal, or save a round ahead for a
-    particular level 7 launch.
+  - **Planning ahead:** apart from crossing water (D48), it looks one
+    move ahead; it doesn't plan a chain of Outposts toward a goal, or
+    save a round ahead for a particular level 7 launch.
+  - **Pontoons with poor aim:** the easier personalities often miss
+    the tile they meant, and lay many Pontoons before they cross, if
+    they do.
   - **Bait:** it doesn't fire a cheap shot to draw an Interceptor's
     missile and attack on its next turn.
   - **Scouting with shots:** it doesn't use Scatter Shells or Charges

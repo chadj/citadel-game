@@ -9,6 +9,7 @@
 
 import { MEDIUM_VARIATION, WIND_MEDIUM, FACTIONS, COLORS } from '../../rules/constants.js';
 import { mapData } from './maps.js';
+import { generateMap } from '../../mapgen/generate.js';
 
 // The team layout: sizes of the teams of two or more, smallest first.
 export function teamLayout(players) {
@@ -123,4 +124,11 @@ export function claimColor(players, me, wanted, random) {
   if (!players.some((p, i) => i !== me && p.color === wanted)) return wanted;
   const free = [...Array(COLORS).keys()].filter((c) => !players.some((p, i) => i !== me && p.color === c));
   return free[Math.floor(random() * free.length)];
+}
+
+// A generated map from the host's settings (spec 02, Generated maps).
+// The seed is rolled here; the whole map then goes into the setup, so
+// every machine and every replay gets it.
+export function generatedMap(settings, random) {
+  return generateMap(settings, Math.floor(random() * 4294967296), 'Generated map');
 }

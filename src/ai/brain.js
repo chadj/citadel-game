@@ -16,10 +16,12 @@
 import { applyMove, settle } from '../rules/game.js';
 import { ITEMS, BUILDING, itemCost } from '../rules/items.js';
 import { conduitWarning } from '../rules/conduits.js';
-import { findUnit } from '../rules/units.js';
-import { MIN_TO_PLAY, POWER_MAX } from '../rules/constants.js';
+import { findUnit, addUnit } from '../rules/units.js';
+import { MIN_TO_PLAY, POWER_MAX, PX, WET } from '../rules/constants.js';
+import { delta, wrap } from '../rules/math/wrap.js';
+import { tileIndex, tileCenter, sampleTerrain } from '../rules/terrain/terrain.js';
 import { Memory } from './belief.js';
-import { envFor } from './aim.js';
+import { envFor, solve } from './aim.js';
 import { candidates } from './candidates.js';
 import { evaluate, planFor } from './value.js';
 import { personality as pick, STYLE_WEIGHTS } from './personalities.js';
@@ -27,6 +29,8 @@ import { personality as pick, STYLE_WEIGHTS } from './personalities.js';
 export const THINK_LIMIT_MS = 25000; // spec 09: about 20 to 30 seconds
 const EYE = [1, 0.6, 0.3, 0.1, 0]; // its error, by how often it has repeated a shot
 const ROBUST_TOP = 6; // the best moves played out again with error
+const CROSSING_SHARE = 0.8; // of what the building after a Pontoon adds
+const CROSSING_MAX = 400; // px of water a crossing plan looks across
 const now = () => (globalThis.performance ? performance.now() : Date.now());
 
 // A random number source from a seed, so tests can repeat a game.
@@ -121,7 +125,7 @@ export class Brain {
     progress.passValue = passValue;
     for (const c of list) {
       const move = { type: 'launch', player, ...withoutTarget(c) };
-      const v = this.playOut(belief, plan, move);
+      const v = this.score(belief, plan, move, c);
       if (v !== null) progress.scored.push({ c, move, v: v + this.habit(c) });
       yield progress;
     }
@@ -133,7 +137,7 @@ export class Brain {
       for (const e of progress.scored.slice(0, ROBUST_TOP)) {
         const vs = [e.v];
         for (let k = 0; k < 2; k++) {
-          const v = this.playOut(belief, plan, this.stray(e.move, 0.7));
+          const v = this.score(belief, plan, this.stray(e.move, 0.7), e.c);
           vs.push(v === null ? passValue - itemCost(e.move.item) : v + this.habit(e.c));
         }
         e.v = vs.reduce((a, b) => a + b, 0) / vs.length;
@@ -155,15 +159,65 @@ export class Brain {
     return v;
   }
 
+  score(belief, plan, move, c) {
+    return c.cross ? this.crossing(belief, plan, move) : this.playOut(belief, plan, move);
+  }
+
   playOut(belief, plan, move) {
-    const copy = { ...belief, state: structuredClone(belief.state), events: [] };
-    try {
-      if (!applyMove(copy, move).ok) return null;
-      settle(copy);
-    } catch {
-      return null;
+    const copy = played(belief, move);
+    return copy && evaluate(copy, plan);
+  }
+
+  // A Pontoon is worth what it lets it build across the water (spec 09,
+  // Planning ahead: water needs a Pontoon first). It plays the Pontoon
+  // out; then, along the line from the launcher through it, it supposes
+  // Pontoons on the rest of the water, and that it has its turn again
+  // with enough for an Outpost; and plays out the best Outpost onto the
+  // land past the water. A share of what that adds counts now: less for
+  // every further Pontoon the crossing needs, which it pays for too.
+  crossing(belief, plan, move) {
+    const copy = played(belief, move);
+    if (!copy) return null;
+    const now = evaluate(copy, plan);
+    const s = copy.state;
+    const pontoon = s.units.find((u) => u.kind === 'pontoon' && u.owner === move.player && !belief.state.units.some((b) => b.id === u.id));
+    const launcher = findUnit(s, move.launcher);
+    if (!pontoon || !launcher || s.phase !== 'turn') return now;
+    const next = { ...copy, state: structuredClone(s), events: [] };
+    const t = next.state;
+    const size = next.map.size;
+    const a = Math.atan2(delta(launcher.y, pontoon.y, size), delta(launcher.x, pontoon.x, size));
+    const along = (d) => ({ x: wrap(Math.round(pontoon.x + Math.cos(a) * d * PX), size), y: wrap(Math.round(pontoon.y + Math.sin(a) * d * PX), size) });
+    t.turn = { ...t.turn, player: move.player, seat: t.seats.indexOf(move.player), launched: false };
+    t.players[move.player].energy = Math.max(t.players[move.player].energy, itemCost('outpost'));
+    const before = evaluate(next, plan);
+    // The rest of the water on the way, as the map has it.
+    let extra = 0;
+    let shore = 0;
+    for (let d = 15; d <= CROSSING_MAX; d += 15) {
+      const p = along(d);
+      if (sampleTerrain(next.map, p.x, p.y).type !== WET) {
+        shore = d;
+        break;
+      }
+      const c = tileCenter(next.map, tileIndex(next.map, p.x, p.y));
+      if (t.units.some((u) => u.kind === 'pontoon' && u.x === c.x && u.y === c.y)) continue;
+      addUnit(t, { kind: 'pontoon', owner: move.player, x: c.x, y: c.y, base: pontoon.base });
+      extra += 1;
     }
-    return evaluate(copy, plan);
+    if (shore === 0) return now;
+    const env = envFor(next);
+    // The Pontoons alone may be enough: something can be built across.
+    let best = evaluate(next, plan);
+    const spots = [0, shore + 45, shore + 100, shore + 160];
+    for (const d of spots) {
+      const shot = solve(next, env, launcher, along(d));
+      if (!shot || shot.miss > 20 * PX) continue;
+      const after = played(next, { type: 'launch', player: move.player, launcher: launcher.id, item: 'outpost', heading: shot.heading, power: shot.power });
+      if (after) best = Math.max(best, evaluate(after, plan));
+    }
+    const gain = best - before - extra * itemCost('pontoon');
+    return now + CROSSING_SHARE ** (1 + extra) * Math.max(0, gain);
   }
 
   // Picks a move from what it weighed, and adds its error.
@@ -172,13 +226,24 @@ export class Brain {
     if (!progress || progress.passValue === undefined) return pass;
     const p = this.personality;
     const noise = (1 - p.judgment) * 20;
-    const scored = progress.scored.map((e) => ({ ...e, v: e.v + noise * gauss(this.random) }));
+    // Poor judgment misranks the moves worth making; with dozens of
+    // them, noise alone would always find one that seems to beat
+    // passing, so it only reorders those that do.
+    const worth = progress.scored.filter((e) => e.v > progress.passValue);
+    const scored = worth.map((e) => ({ ...e, v: e.v + noise * gauss(this.random) }));
     scored.sort((a, b) => b.v - a.v);
-    let choice = scored[0] && scored[0].v > progress.passValue ? scored[0] : null;
+    let choice = scored[0] ?? null;
     // A whim: something else that isn't a disaster.
     if (this.random() < p.whim) {
-      const others = scored.filter((e) => e !== choice && e.v > progress.passValue - 15);
-      if (others.length > 0) choice = others[Math.floor(this.random() * others.length)];
+      // An item first, then one of its moves, so a cheap item with many
+      // candidates doesn't crowd out the rest.
+      const others = progress.scored.filter((e) => e.c !== choice?.c && e.v > progress.passValue - 5);
+      const items = [...new Set(others.map((e) => e.c.item))];
+      if (items.length > 0) {
+        const item = items[Math.floor(this.random() * items.length)];
+        const pick = others.filter((e) => e.c.item === item);
+        choice = pick[Math.floor(this.random() * pick.length)];
+      }
     }
     if (!choice) {
       this.last = null;
@@ -220,8 +285,20 @@ export class Brain {
   }
 }
 
-function withoutTarget({ target, ...rest }) {
+function withoutTarget({ target, cross, ...rest }) {
   return rest;
+}
+
+// A copy of the game with a move played out, or null if it's refused.
+function played(game, move) {
+  const copy = { ...game, state: structuredClone(game.state), events: [] };
+  try {
+    if (!applyMove(copy, move).ok) return null;
+    settle(copy);
+  } catch {
+    return null;
+  }
+  return copy;
 }
 
 function gauss(random) {

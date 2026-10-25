@@ -11,7 +11,7 @@ import { createGame, applyMove, settle } from '../../src/rules/game.js';
 import { updateFog } from '../../src/rules/fog.js';
 import { citadelOf } from '../../src/rules/units.js';
 import { hashState } from '../../src/rules/hash.js';
-import { MIN_TO_PLAY } from '../../src/rules/constants.js';
+import { MIN_TO_PLAY, PX } from '../../src/rules/constants.js';
 import { listJsFiles } from '../../tools/walk.js';
 import { Brain, seeded } from '../../src/ai/brain.js';
 import { PERSONALITIES, STYLE_WEIGHTS } from '../../src/ai/personalities.js';
@@ -143,7 +143,7 @@ test('a game between computers on a real map: every move is accepted, and none t
   setup.starts = map.starts[2][''].map((g) => g[0]);
   // The rules see both seats as human, so the game goes on.
   const game = createGame(setup);
-  const starts = mapStarts(map.name);
+  const starts = mapStarts(setup.map);
   assert.ok(starts.length >= 2);
   const brains = [brain('warden', 0, 2, starts), brain('drifter', 1, 3, starts)];
   let launched = 0;
@@ -164,4 +164,29 @@ test('computer players are plain JavaScript, with no Phaser or browser', () => {
     const source = readFileSync(file, 'utf8');
     assert.doesNotMatch(source, /from 'phaser'|\bwindow\.|\bdocument\.|\/client\//, file);
   }
+});
+
+test('fenced in by water, it lays Pontoons and builds across', () => {
+  // An island, ringed by water two tiles wide; the vents and the enemy
+  // are beyond it.
+  const rows = [];
+  for (let y = 0; y < 48; y++) {
+    let row = '';
+    for (let x = 0; x < 48; x++) row += [5, 6].includes(Math.max(Math.abs(x - 8), Math.abs(y - 8))) ? '~' : '.';
+    rows.push(row);
+  }
+  const setup = makeSetup({ players: [{}, { computer: true }], fog: false });
+  setup.map = { name: 'Fenced', players: 2, planet: 'tundra', rows, vents: [{ x: 1020, y: 510, size: 'large' }, { x: 510, y: 1020, size: 'large' }] };
+  setup.starts = [{ x: 1950, y: 1950 }, { x: 510, y: 510 }];
+  const game = createGame(setup);
+  const b = brain('warden', 1, 3, setup.starts);
+  const across = () => game.state.units.some((u) => u.owner === 1 && u.kind === 'outpost'
+    && Math.max(Math.abs(Math.floor(u.x / PX / 60) - 8), Math.abs(Math.floor(u.y / PX / 60) - 8)) > 6);
+  while (game.state.round <= 8 && !across()) {
+    const p = whoseTurn(game);
+    assert.ok(applyMove(game, p === 0 ? { type: 'pass', player: 0 } : b.think(game, 1)).ok);
+    settle(game);
+  }
+  assert.ok(game.state.units.some((u) => u.owner === 1 && u.kind === 'pontoon'));
+  assert.ok(across(), 'an Outpost stands beyond the water');
 });

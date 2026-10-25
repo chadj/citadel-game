@@ -7,7 +7,9 @@
 // vents, the enemy and the starts it hasn't seen; defenses go by its
 // threatened buildings; weapons go at the enemy units it knows of.
 
-import { PX, POWER_MAX, ROVER_DRIVE } from '../rules/constants.js';
+import { PX, POWER_MAX, ROVER_DRIVE, WET } from '../rules/constants.js';
+import { tileIndex, tileCenter } from '../rules/terrain/terrain.js';
+import { wrap } from '../rules/math/wrap.js';
 import { ITEMS, itemCost, canLaunch } from '../rules/items.js';
 import { UNIT_KINDS, isLauncher, isWorking } from '../rules/units.js';
 import { isGone } from '../rules/conduits.js';
@@ -25,12 +27,12 @@ export function candidates(game, plan, env, random) {
   const launchers = mine.filter((u) => u.owner === plan.player && isLauncher(u) && isWorking(s, u));
   const out = [];
   const can = (l, item) => canLaunch(l.kind, item) && itemCost(item) <= energy;
-  const add = (l, item, heading, power, target = null) => {
-    out.push({ launcher: l.id, item, heading: ((heading % 360) + 360) % 360, power: Math.max(0, Math.min(POWER_MAX, Math.round(power))), target });
+  const add = (l, item, heading, power, target = null, extra = {}) => {
+    out.push({ launcher: l.id, item, heading: ((heading % 360) + 360) % 360, power: Math.max(0, Math.min(POWER_MAX, Math.round(power))), target, ...extra });
   };
-  const aimAt = (l, item, point, target = null) => {
+  const aimAt = (l, item, point, target = null, extra = {}) => {
     const shot = solve(game, env, l, point);
-    if (shot && shot.miss < 25 * PX) add(l, item, shot.heading, shot.power, target);
+    if (shot && shot.miss < 25 * PX) add(l, item, shot.heading, shot.power, target, extra);
   };
   const toward = (l, p, d) => {
     const a = (bearing(size, l, p) * Math.PI) / 180;
@@ -53,11 +55,18 @@ export function candidates(game, plan, env, random) {
         const goals = [...freeVents, ...plan.unseenStarts, ...enemyLaunchers]
           .filter((g) => distance(size, l, g) > 150 * PX);
         for (const g of goals.slice(0, 8)) aimAt(l, 'outpost', toward(l, g, Math.min(distance(size, l, g) - 60 * PX, 0.85 * r)));
+        // Onto its own Pontoons, and past them, to carry a crossing on.
+        for (const pt of mine.filter((u) => u.kind === 'pontoon' && distance(size, l, u) <= r)) {
+          for (const d of [0, 70, 130]) aimAt(l, 'outpost', toward(l, pt, distance(size, l, pt) + d * PX));
+        }
       }
       if (can(l, 'extractor')) {
         for (const v of freeVents) if (distance(size, l, v) <= r) aimAt(l, 'extractor', v);
         if (s.round <= 3) for (let h = spin + 15; h < 360; h += 60) add(l, 'extractor', h, 450);
       }
+      // Pontoons where its land meets water: weighed with the building
+      // that would follow across (brain.js).
+      if (can(l, 'pontoon')) for (const p of shoreWater(game, env, l, 0.9 * r)) aimAt(l, 'pontoon', p, null, { cross: true });
       if (can(l, 'spire') && plan.fog) for (let h = spin; h < 360; h += 45) for (const p of [500, 850]) add(l, 'spire', h, p);
       if (can(l, 'battery') && enemyLaunchers.length > 0) {
         for (const e of enemyLaunchers.slice(0, 3)) for (const d of [200, 350]) aimAt(l, 'battery', toward(l, e, d * PX));
@@ -108,6 +117,29 @@ export function candidates(game, plan, env, random) {
     }
   }
   return out.filter((c) => ITEMS[c.item]);
+}
+
+// The water tiles a launcher's land first meets, looking out along
+// every 15° up to `far`: the centers of the tiles.
+function shoreWater(game, env, l, far) {
+  const step = 15 * PX;
+  const seen = new Set();
+  const out = [];
+  for (let h = 0; h < 360; h += 15) {
+    const a = (h * Math.PI) / 180;
+    for (let d = step; d <= far; d += step) {
+      const x = wrap(Math.round(l.x + Math.cos(a) * d), game.map.size);
+      const y = wrap(Math.round(l.y + Math.sin(a) * d), game.map.size);
+      if (env.terrain(x, y).type !== WET) continue;
+      const tile = tileIndex(game.map, x, y);
+      if (!seen.has(tile)) {
+        seen.add(tile);
+        out.push(tileCenter(game.map, tile));
+      }
+      break;
+    }
+  }
+  return out;
 }
 
 function nearest(size, p, list) {

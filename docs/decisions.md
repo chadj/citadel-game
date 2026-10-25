@@ -344,8 +344,12 @@ on 2026-10-25. Exact numbers chosen during tuning go in
   planet, one string of tile characters per row (`~` Water, `.`
   Ground, `+` Plateau, `^` Mountain), and the vents' centers in pixels
   with a size of large, medium or small (110, 80 and 45 px across).
-  Start positions are added with D16 in M8. Loading a map checks it
-  and lists every problem found.
+  Start positions are listed in groups for each player count and team
+  layout (D16), in pixels. Loading a map checks it and lists every
+  problem found.
+  - A game's setup holds the map data without the groups, plus
+    `positions`: every start position the map offers, which anyone can
+    know, without which player got which.
 
 ## D27. State hashing
 - **Date:** 2026-10-25
@@ -685,14 +689,13 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     Drift Clans, and differ in the outline of their units. The six
     colors are red, blue, green, yellow, violet and orange.
 
-## D41. Maps until the full set — Ours
+## D41. The hand-drawn maps — Ours
 - **Date:** 2026-10-25
 - **Spec:** 02 Start positions, Maps that come with the game; D16
-- **Decision:** Until the maps that come with the game are made (with
-  the generator), the client offers two: Quiet Basin (32 tiles,
+- **Decision:** Two maps are drawn by hand: Quiet Basin (32 tiles,
   tundra) and Shallow Crossing (40 tiles, desert), each with four
   corner starts grouped for every player count and team layout as D16
-  describes.
+  describes. They stay in the set alongside the generated ones (D47).
 
 ## D42. The chat key while typing
 - **Date:** 2026-10-25
@@ -746,8 +749,12 @@ on 2026-10-25. Exact numbers chosen during tuning go in
   - **Style** weighs the parts of a position: a Builder counts economy
     at 1.35, an Aggressor attack at 1.35, a Defender the threats to it
     at 1.4.
-  - **A whim** picks another of the moves it weighed at random, as
-    long as that isn't clearly worse than passing.
+  - **A whim** picks another kind of move it weighed at random, then
+    one of its moves, as long as that isn't clearly worse than
+    passing (within 0.5 energy).
+  - **Judgment noise** reorders the moves that beat passing; it never
+    makes a move worse than passing look worth launching. (With dozens
+    of candidates, noise alone would otherwise always find one.)
   - **Getting its eye in:** a shot exactly like its last one, from the
     same launcher, strays by 60%, 30%, 10%, then none of its error.
 
@@ -780,3 +787,96 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     25 s.
   - **Its aim.** If its error would put a building's heading in the
     conduit warning, it aims again, as a human would.
+
+## D46. The map generator — Ours
+- **Date:** 2026-10-25
+- **Spec:** 02 Generated maps, Start positions, Energy Vents
+- **Decision:**
+  - **Deterministic.** The same settings and a 32-bit seed always give
+    the same map on every machine (`src/mapgen/generate.js`, checked
+    by the purity test). The host rolls the seed and puts the whole map
+    in the setup, so the other players and the replay get it as data.
+  - **The controls:** Style (Mirrored or Grown), Size (the five sizes),
+    Planet (the six), and Energy, Terrain and Water with five steps
+    each, 0 to 4, each also Random. Random picks any style, size or
+    planet, and steps 1 to 3 of the other three.
+
+    | Step | Energy | Terrain | Water |
+    |---|---|---|---|
+    | 0 | Scarce: 4 vents per 1,024 tiles | Smooth: 5% raised | None |
+    | 1 | Low: 7 | Gentle: 12% | Little: 6% of the map |
+    | 2 | Normal: 11 | Normal: 20% | Some: 13% |
+    | 3 | Rich: 15 | Hilly: 28% | Much: 24% |
+    | 4 | Abundant: 22 | Rough: 36% | Islands: 50% |
+
+    Raised land is a share of the land; Mountains are 10% to 45% of
+    it, rising with the step, and rougher steps add finer hills. More
+    energy also means larger vents.
+  - **How it builds a map:** two fields of smooth noise, one for water
+    and one for height, cut at the shares above; lone raised tiles are
+    smoothed away; then any tile more than one level above a neighbor
+    comes down (D23). The Islands step uses finer water noise, so the
+    land breaks up.
+  - **Mirrored:** a quarter is built, with its edges treated as
+    mirrors, then mirrored into the other three, with its start and
+    vents. Starts lie near the middle of each quarter.
+  - **Grown:** four starts as far apart as possible, on dry, flat
+    Ground where there is any; teams of two get the closer pairs
+    (D16). Each start first gets a vent within about 8 tiles, if
+    there's room, then the rest go anywhere. A start may end up cut
+    off by water: computers can cross (D48).
+  - **Flat ground.** A start is made Ground for 2 tiles all around.
+    A large vent needs one dry level for 2 tiles all around its tile,
+    a smaller one for 1, so slopes and shores never reach it. Vents
+    stay at least 3 tiles from starts and from each other.
+  - **Suggested players:** 2 for 32 and 40 tiles, 3 for 48, 4 for 56
+    and 64.
+    Start positions are given for 2, 3 and 4 players and every layout.
+
+## D47. The maps that come with the game — Ours
+- **Date:** 2026-10-25
+- **Spec:** 02 Maps that come with the game
+- **Decision:** Twelve, in all five sizes and on all six planets: the
+  two drawn by hand (D41) and ten made with the generator by
+  `tools/make-maps.js`, which records each one's settings and seed.
+  They're kept as data (`src/maps/generated.js`), so a later change to
+  the generator doesn't change them; a test checks the file still
+  matches what the tool makes.
+
+  | Map | Tiles | Planet | Style | Energy, Terrain, Water |
+  |---|---|---|---|---|
+  | Quiet Basin | 32 | Tundra | drawn | |
+  | Red Steps | 32 | Canyon | Mirrored | 2, 3, 1 |
+  | Green Haze | 32 | Toxic | Grown | 2, 2, 0 |
+  | Shallow Crossing | 40 | Desert | drawn | |
+  | Twin Ridges | 40 | Plains | Mirrored | 1, 3, 2 |
+  | Sump Flats | 40 | Toxic | Grown | 2, 1, 2 |
+  | Ice Shelf | 48 | Glacier | Mirrored | 2, 2, 3 |
+  | Long Meadow | 48 | Plains | Grown | 3, 1, 1 |
+  | Broken Mesa | 56 | Canyon | Grown | 2, 4, 1 |
+  | Scattered Isles | 56 | Tundra | Mirrored | 3, 2, 4 |
+  | Great Erg | 64 | Desert | Mirrored | 2, 3, 0 |
+  | Floe Field | 64 | Glacier | Grown | 3, 2, 4 |
+
+## D48. Computers cross water — Ours
+- **Date:** 2026-10-25
+- **Spec:** 09 Planning ahead (water needs a Pontoon first),
+  Opportunities (Pontoons)
+- **Decision:**
+  - **Pontoons are planned with what follows.** It considers a
+    Pontoon on each water tile its land first meets, looking out every
+    15° from each Outpost. It weighs one by playing it out, then
+    supposing Pontoons on the rest of the water along the same line
+    (up to about 400 px), and its turn again with enough for an
+    Outpost, and playing out the best Outpost onto the land beyond (or
+    the Pontoons alone, if they already let it build across). Of what
+    that adds, less 1 energy for each further Pontoon, it counts 80%
+    for each Pontoon the crossing still needs, the first included.
+  - **It carries a crossing on:** Outposts aimed onto its own Pontoons,
+    and 70 and 130 px past them, are among its candidates.
+  - **Reach respects water.** A vent or unseen start counts as in reach
+    of an Outpost only if the line to it crosses no water without a
+    Pontoon (or counts for a fifth). In reach counts in full; out of
+    reach counts at most 60%, less the further it is.
+  - **Enemy Pontoons** are attacked like any other target: playing a
+    shot out shows what sinks and burns with them.

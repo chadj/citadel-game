@@ -7,29 +7,23 @@
 
 import { Brain } from '../../ai/brain.js';
 import { PERSONALITIES as LIST, RANDOM } from '../../ai/personalities.js';
-import { MAPS } from './maps.js';
+import { findMap, startPositions } from './maps.js';
 
 export const PERSONALITIES = Object.freeze([
   { id: RANDOM, name: 'Random' },
   ...LIST.map(({ id, name }) => ({ id, name })),
 ]);
 
-// The start positions a map offers, in every layout: the Citadels stand
-// on some of them (spec 09, Finding the enemy's Citadel).
-export function mapStarts(name) {
-  const map = MAPS.find((m) => m.name === name);
-  if (!map) return [];
-  const all = new Map();
-  for (const layouts of Object.values(map.starts)) {
-    for (const groups of Object.values(layouts)) {
-      for (const p of groups.flat()) all.set(`${p.x},${p.y}`, p);
-    }
-  }
-  return [...all.values()];
+// The start positions the game's map offers, in every layout: the
+// Citadels stand on some of them (spec 09, Finding the enemy's Citadel).
+export function mapStarts(mapData) {
+  if (mapData.positions) return mapData.positions;
+  const map = findMap(mapData.name);
+  return map ? startPositions(map) : [];
 }
 
 export function makeBrain(personality, player, setup) {
-  return new Brain(personality, player, { starts: mapStarts(setup.map.name) });
+  return new Brain(personality, player, { starts: mapStarts(setup.map) });
 }
 
 // Each computer player's brain, for a game's setup.
