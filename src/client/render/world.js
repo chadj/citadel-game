@@ -452,11 +452,11 @@ export class WorldView {
     }
   }
 
-  // The targeting marks: a ring around the selected launcher, and marks
+  // The targeting marks: a ring around the selected launcher, and a mark
   // showing roughly the heading, drawn over everything, fog included
   // (spec 01, What players see; spec 10, The launching view). And the
-  // conduit marker, where the new conduit would start too close to one
-  // of the launcher's own.
+  // conduit marker: a highlight around the heading's mark, when the new
+  // conduit would start too close to one of the launcher's own (D38).
   drawTargeting(copies, controls) {
     const u = controls.selectedUnit();
     if (!u) return;
@@ -467,6 +467,7 @@ export class WorldView {
     const r = spec.radius / PX + 6;
     const color = this.color(u.owner);
     const charging = controls.meter.holding;
+    const warn = controls.item && conduitWarning(this.game.state, u, moveHeading(controls.aim()), this.map.size).length > 0;
     for (const [sx, sy] of copies(mx, my, 80)) {
       top.lineStyle(1.5, 0xffffff, 0.85);
       top.strokeCircle(sx, sy, r);
@@ -479,25 +480,16 @@ export class WorldView {
       // One round mark, not a line, so the heading is only roughly shown.
       const a = deg(markHeading(controls.aim()));
       const d = r + 34;
-      top.fillStyle(color, 1);
-      top.fillCircle(sx + Math.cos(a) * d, sy + Math.sin(a) * d, 4);
-      top.lineStyle(1, 0x000000, 0.6);
-      top.strokeCircle(sx + Math.cos(a) * d, sy + Math.sin(a) * d, 4);
-    }
-    if (controls.item) {
-      const warn = conduitWarning(this.game.state, u, moveHeading(controls.aim()), this.map.size);
-      for (const id of warn) {
-        const c = this.game.state.conduits.find((k) => k.id === id);
-        // The marker sits on the end of the conduit nearest the launcher.
-        const live = c ? c.nodes.filter((n) => !isGone(this.game.state, n)) : [];
-        const pts = c?.to === u.id ? live.slice(-6) : live.slice(0, 6);
-        for (const n of pts) {
-          for (const [sx, sy] of copies(n.x / PX, (n.y - Math.max(0, n.z) * LIFT) / PX, 10)) {
-            top.lineStyle(2, 0xffd040, 0.5 + 0.5 * Math.abs(Math.sin(this.time / 160)));
-            top.strokeCircle(sx, sy, 5);
-          }
-        }
+      const ax = sx + Math.cos(a) * d;
+      const ay = sy + Math.sin(a) * d;
+      if (warn) {
+        top.lineStyle(2, 0xffd040, 0.5 + 0.5 * Math.abs(Math.sin(this.time / 160)));
+        top.strokeCircle(ax, ay, 8);
       }
+      top.fillStyle(color, 1);
+      top.fillCircle(ax, ay, 4);
+      top.lineStyle(1, 0x000000, 0.6);
+      top.strokeCircle(ax, ay, 4);
     }
   }
 

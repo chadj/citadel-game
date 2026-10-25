@@ -641,6 +641,10 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     ring, the heading is one round mark in the player's color, 34 px
     out from the ring (user's choice, 2026-10-25: a line of marks
     pointed too precisely).
+  - **The conduit marker** is a pulsing yellow ring around the
+    heading's mark, not marks on the conduit itself (user's choice,
+    2026-10-25: marks along the conduit also formed a line). Proposed
+    spec wording is in docs/spec-changes.md.
   - **The meter** fills in 38 ticks (about 1.27 s) and empties in 38;
     the power is the share full × 1000, from the ticks Launch was held,
     so there are 38 powers each way. The quickest tap counts as 1 tick
