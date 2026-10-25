@@ -355,3 +355,63 @@ on 2026-10-25. Exact numbers chosen during tuning go in
   canonical form, with object keys sorted and every string prefixed
   with its length, and hashed to 64 bits (two 32-bit FNV-1a lanes).
   Anything that isn't plain data or a whole number is refused.
+
+## D28. Shot clock values
+- **Date:** 2026-10-25
+- **Spec:** 03 The shot clock; Appendix A, 03
+- **Question:** What exact limits does a turn get?
+- **Decision:** The rules set each turn's limit, in milliseconds, when
+  the turn starts. Whoever keeps the time (spec 12) applies it, and
+  sends a timeout move when it runs out.
+  - With the clock on: the setting plus 10% (15 → 16.5 s, 30 → 33 s,
+    60 → 66 s).
+  - A turn that follows the same player's own turn gets 75% of the
+    last limit, but never less than 10 s. Any other turn, and the
+    first turn of a round, gets the full limit.
+  - With the clock off: no limit.
+  - A player with no working Outpost or Battery: 10 s, whatever the
+    setting.
+  - The clock starts 1.5 s into the turn; the warning comes when 75%
+    is gone.
+
+## D29. Unit sizes
+- **Date:** 2026-10-25
+- **Spec:** 04 The units
+- **Question:** What exact footprints and heights do units have?
+- **Decision:** The spec's targets as they stand, in px, with one
+  change: the Interceptor's radius is 18, so the Extractor (20) is the
+  widest building with the Interceptor close behind. The Rover is 2 px
+  tall ("nearly flat").
+
+  | Unit | Armor | Radius | Height |
+  |---|---|---|---|
+  | Outpost | 5 | 15 | 20 |
+  | Battery | 3 | 15 | 20 |
+  | Extractor | 5 | 20 | 20 |
+  | Barrier | 3 | 15 | 20 |
+  | Interceptor | 3 | 18 | 20 |
+  | Spire | 3 | 15 | 100 |
+  | Pontoon | 3 | 30 | 10 |
+  | Sky Probe | 1 | 15 | 50 |
+  | Proximity Charge | 1 | 10 | 20 |
+  | Rover | 3 | 5 | 2 |
+
+## D30. Moves, refusals and the turn's phases
+- **Date:** 2026-10-25
+- **Spec:** 03 A turn; 12 Every machine plays the same game, What a
+  replay records
+- **Question:** How are moves applied, and what happens to one that
+  doesn't count?
+- **Decision:**
+  - A move is a launch (launcher, item, heading, power), a pass, a
+    timeout, or a disconnect. A disconnect can come at any time; the
+    others only from the player whose turn it is, while the game waits
+    for a move.
+  - A move that doesn't count is refused with a reason, and changes
+    nothing. Only moves that count go into a replay.
+  - After a launch, the game runs a tick at a time until everything
+    has settled, then the turn changes hands. No move but a disconnect
+    counts meanwhile. Passes and timeouts change the turn at once.
+  - Once a player is out for the round, they stay out until the next
+    round, even if their energy rises again (for example from a
+    Citadel bonus).

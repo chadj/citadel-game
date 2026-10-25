@@ -58,3 +58,31 @@ entries in `decisions.md` it relies on.
 - **Files:** `src/rules/hash.js`
 - **Spec:** 12 The game state, Determinism checks.
 - **Decisions:** D27.
+
+## Items and units
+- **Files:** `src/rules/items.js`, `src/rules/units.js`
+- **Spec:** 00 What can be launched; 04 What every unit has, The units,
+  Battery; 10 The build menu (what a Battery offers).
+- **Decisions:** D1 (armor in tenths), D29.
+
+## Game setup
+- **Files:** `src/rules/setup.js`
+- **Spec:** 00 Players and setup; 03 The order of play (two teams of two
+  alternate); 12 Setting up a game, Teams, When the game starts.
+- **Decisions:** D16 (start positions are rolled into the setup).
+
+## Turns, rounds, energy and the end of the game
+- **Files:** `src/rules/game.js`, `src/rules/energy.js`,
+  `src/rules/effects.js`
+- **Spec:** 03 (all of it, except the Rovers' drive, which comes with
+  M5); 00 Energy, Winning and losing; 02 Start positions (11 energy
+  each); 06 Explosions and damage (who gets the credit); 07 When it
+  explodes (no bonus for one's own side's Citadel); 12 Every machine
+  plays the same game, Dropping out.
+- **Decisions:** D1, D2, D18, D19, D28, D30.
+
+## Replays
+- **Files:** `src/rules/replay.js`
+- **Spec:** 12 Replays (what a replay records, refusing other rules
+  versions), Determinism checks 1 and 3.
+- **Decisions:** D30.

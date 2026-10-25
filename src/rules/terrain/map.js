@@ -99,18 +99,24 @@ export function loadMap(data) {
   });
 }
 
-// A map from a picture of its tiles, for tests and tools. `rows` may be
-// smaller than the map; the rest is filled with `fill`.
-export function sketchMap({ tiles = 32, planet = 'tundra', fill = '.', rows = [], at = [0, 0], ...rest } = {}) {
+// Map data from a picture of its tiles, for tests and tools. `rows` may
+// be smaller than the map, placed with its top-left tile `at`; the rest
+// is filled with `fill`.
+export function sketchMapData({ tiles = 32, planet = 'tundra', fill = '.', rows = [], at = [0, 0], ...rest } = {}) {
   const grid = Array.from({ length: tiles }, () => Array(tiles).fill(fill));
   rows.forEach((row, y) => {
     for (let x = 0; x < row.length; x++) grid[(at[1] + y) % tiles][(at[0] + x) % tiles] = row[x];
   });
-  return loadMap({
+  return {
     name: 'Sketch',
     players: 2,
     planet,
     ...rest,
     rows: grid.map((r) => r.join('')),
-  });
+  };
+}
+
+// The same, loaded.
+export function sketchMap(options) {
+  return loadMap(sketchMapData(options));
 }

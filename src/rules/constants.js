@@ -60,4 +60,33 @@ export const MEDIUM_VARIATION = Math.round(ONE * 0.15); // Medium varies by up t
 // A shot moving sideways slower than this isn't pushed.
 export const WIND_MIN_SPEED = Math.round((5 * VEL) / TICKS_PER_SECOND); // about 5 px/s
 
+// Energy, in tenths (spec 00, Energy; spec 03; decision D1).
+export const TENTHS = 10;
+export const START_ENERGY = 110; // 11
+export const ENERGY_CAP = 350; // 35
+export const CITADEL_INCOME = 70; // 7
+export const VENT_EXTRACTOR_INCOME = 30; // 3
+export const EXTRACTOR_INCOME = 10; // 1
+export const TIMEOUT_COST = 10; // 1
+export const CITADEL_BONUS = 70; // 7
+export const MIN_TO_PLAY = 10; // below 1, a player can't afford anything
+
+// The shot clock (spec 03, The shot clock; decision D28). Times are in
+// milliseconds: the rules set each turn's limit, and whoever keeps the
+// time (spec 12) applies it.
+export const CLOCK_SETTINGS = Object.freeze([0, 15, 30, 60]); // seconds; 0 is off
+export const CLOCK_GRACE = 110; // percent of the setting: about 10% more
+export const CLOCK_SHRINK = 75; // percent of the last turn's limit, for back-to-back turns
+export const CLOCK_MIN = 10000; // about 10 seconds
+export const NO_LAUNCHER_LIMIT = 10000; // about 10 seconds
+export const CLOCK_START_DELAY = 1500; // about 1.5 seconds into the turn
+export const CLOCK_WARNING = 75; // percent of the limit gone
+
+// Players (spec 00, Players and setup; spec 12).
+export const MIN_PLAYERS = 2;
+export const MAX_PLAYERS = 4;
+export const MAX_COMPUTERS = 3;
+export const FACTIONS = 4;
+export const COLORS = 6;
+
 export { PX, VEL, ONE };
