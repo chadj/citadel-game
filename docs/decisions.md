@@ -685,8 +685,9 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     or infects an opponent's unit; a Rover counts when it explodes at
     the end of a round. Energy earned is income and Citadel bonuses,
     less energy put aside coming back.
-  - **Factions** are named Meridian, Basalt Union, Lumen Order and
-    Drift Clans, and differ in the outline of their units. The six
+  - **Factions** are named Meridian, Cinder Pact, Pale Lantern and
+    Drift Clans (two renamed at the user's request, being too close
+    to real proper nouns), and differ in the outline of their units. The six
     colors are red, blue, green, yellow, violet and orange.
 
 ## D41. The hand-drawn maps — Ours
