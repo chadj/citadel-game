@@ -76,11 +76,11 @@ test('the quickest tap fires a little above the lowest power', () => {
   assert.ok(power > 0 && power < 60, `${power}`);
 });
 
-test('the meter shows the power only coarsely, in about 20 steps, and keeps showing the last shot', () => {
+test('the meter shows the power only coarsely, in about 20 steps (19), and keeps showing the last shot', () => {
   const shown = new Set();
   for (let p = 0; p <= 1000; p++) shown.add(meterShown(p));
   assert.equal(shown.size, METER_STEPS + 1);
-  assert.equal(meterShown(510), meterShown(545));
+  assert.equal(meterShown(530), meterShown(560));
   const m = new Meter();
   m.start();
   m.update(18);

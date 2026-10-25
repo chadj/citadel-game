@@ -644,8 +644,9 @@ on 2026-10-25. Exact numbers chosen during tuning go in
   - **The meter** fills in 38 ticks (about 1.27 s) and empties in 38;
     the power is the share full × 1000, from the ticks Launch was held,
     so there are 38 powers each way. The quickest tap counts as 1 tick
-    held (power 26). It shows in 20 steps: a power
-    of p lights ⌈p / 50⌉ of them.
+    held (power 26). It shows in 19 steps (the user's
+    choice; spec 01 asks for roughly 20): a power of p lights
+    ⌈19p / 1000⌉ of them.
   - **Launch** stops the clock when pressed. If the launch is then
     refused, the clock runs again. Launch isn't pressed at all if the
     building's conduit marker shows and isn't overridden.

@@ -12,7 +12,7 @@
 import { POWER_MAX } from '../../rules/constants.js';
 
 export const METER_FILL_TICKS = 38; // about 1.25 s
-export const METER_STEPS = 20;
+export const METER_STEPS = 19;
 // The meter has always started to fill: the quickest tap counts as this
 // many ticks, so it fires a little above the lowest power (spec 01, The
 // shortest shots).
