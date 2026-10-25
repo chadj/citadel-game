@@ -10,7 +10,7 @@ import { Button, label, textField, UI, panel } from '../ui/kit.js';
 import { MAPS } from '../core/maps.js';
 import { rollSetup, computerLooks, claimColor, generatedMap, setupProblem } from '../core/newgame.js';
 import { PERSONALITIES } from '../core/computers.js';
-import { MAX_PLAYERS, TILE, PX, MAP_SIZES } from '../../rules/constants.js';
+import { MAX_PLAYERS, MAP_SIZES } from '../../rules/constants.js';
 import { PLANETS } from '../../rules/terrain/planets.js';
 import { STYLES, ENERGY_NAMES, TERRAIN_NAMES, WATER_NAMES } from '../../mapgen/generate.js';
 import { PLAYER_COLORS, PLAYER_COLOR_NAMES, FACTION_NAMES } from '../render/palette.js';
@@ -25,7 +25,7 @@ const STEPS = [0, 1, 2, 3, 4];
 // through its values, then Random.
 const CONTROLS = [
   ['style', 'Style', STYLES, (v) => (v === 'mirror' ? 'Mirrored' : 'Grown')],
-  ['tiles', 'Size', MAP_SIZES, (v) => `${(v * TILE) / PX} px`],
+  ['tiles', 'Size', MAP_SIZES, (v) => `${v} × ${v} tiles`],
   ['planet', 'Planet', Object.keys(PLANETS), (v) => v[0].toUpperCase() + v.slice(1)],
   ['energy', 'Energy', STEPS, (v) => ENERGY_NAMES[v]],
   ['terrain', 'Terrain', STEPS, (v) => TERRAIN_NAMES[v]],
@@ -292,8 +292,8 @@ export class SetupScene extends BaseScene {
     });
     const map = MAPS[this.mapIndex];
     if (map) {
-      const px = (map.rows.length * TILE) / PX;
-      this.settings[0].setText(`Map: ${map.name} (${px} px, ${map.players} players)`);
+      const n = map.rows.length;
+      this.settings[0].setText(`Map: ${map.name} (${n} × ${n} tiles, ${map.players} players)`);
     } else {
       this.settings[0].setText('Map: Generated');
     }
