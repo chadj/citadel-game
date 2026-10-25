@@ -632,8 +632,9 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     steps are part of what makes a shot hard to repeat.
   - **The aim** turns in eighths of a degree. A press turns it 1⅛° at
     once. Held, it waits 1 tick (about 30 ms; the user found 0.25 s,
-    then 60 ms, too long), then turns at 15°/s, rising evenly to 150°/s over 27
-    ticks (0.9 s): about 5° a tick at full speed. A shot follows it to
+    then 60 ms, too long), then turns at 6°/s, rising evenly to
+    146°/s over 27 ticks (0.9 s): about 4.9° a tick at full speed
+    (speeds the user chose). A shot follows it to
     the nearest whole degree.
   - **The targeting marks** show the heading to the nearest 3°, so two
     aims that look the same can fly a degree or two apart.

@@ -18,11 +18,11 @@ test('a press turns the aim about a degree; holding turns it faster and faster, 
   const t = new AimTurner();
   assert.ok(Math.abs(t.press(1) / AIM_FINE - 1) <= 0.25);
   // Rates over successive 3-tick (100 ms) windows rise, and level off
-  // near 150°/s.
+  // near 146°/s.
   const rates = [];
   for (let k = 0; k < 30; k++) rates.push(t.update(3) / AIM_FINE * 10);
   for (let k = 1; k < rates.length; k++) assert.ok(rates[k] >= rates[k - 1] - 1);
-  assert.ok(Math.abs(rates.at(-1) - 150) <= 2, `${rates.at(-1)}°/s`);
+  assert.ok(Math.abs(rates.at(-1) - 146) <= 2, `${rates.at(-1)}°/s`);
   t.release();
   assert.equal(t.update(100), 0);
   // Counterclockwise is negative.
