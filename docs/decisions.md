@@ -685,10 +685,9 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     or infects an opponent's unit; a Rover counts when it explodes at
     the end of a round. Energy earned is income and Citadel bonuses,
     less energy put aside coming back.
-  - **Factions** are named Meridex, Bastion Holdings, Deepbore and
-    Ashwalkers (chosen by the user, replacing earlier names that were
-    too close to real proper nouns), and differ in the outline of
-    their units. The six
+  - **Factions** are named Meridian, Ostrevan, Deepbore and Ruuk
+    (chosen by the user, replacing earlier names that were too close
+    to real names), and differ in the outline of their units. The six
     colors are red, blue, green, yellow, violet and orange.
 
 ## D41. The hand-drawn maps — Ours
@@ -934,8 +933,8 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     faction has its own pitch and speed, and its own system voice
     where the system has several English ones. A recording can stand
     in for any line: `AIDE_FILES` in `sounds.js`, keyed by
-    `aide.<faction>.<event>.<n>` (factions `meridex`, `bastion`,
-    `deepbore`, `ashwalkers`).
+    `aide.<faction>.<event>.<n>` (factions `meridian`, `ostrevan`,
+    `deepbore`, `ruuk`).
   - **Hot seat:** the aide is the player's at the screen; it starts
     afresh when the screen changes hands. Watching a replay, there is
     no aide.

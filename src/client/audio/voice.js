@@ -9,10 +9,10 @@
 import { AIDE_FILES } from './sounds.js';
 
 const PROFILES = [
-  { slug: 'meridex', pitch: 1.0, rate: 1.0, pick: 0 },
-  { slug: 'bastion', pitch: 0.85, rate: 0.95, pick: 1 },
+  { slug: 'meridian', pitch: 1.0, rate: 1.0, pick: 0 },
+  { slug: 'ostrevan', pitch: 0.85, rate: 0.95, pick: 1 },
   { slug: 'deepbore', pitch: 0.7, rate: 0.92, pick: 2 },
-  { slug: 'ashwalkers', pitch: 1.15, rate: 1.08, pick: 3 },
+  { slug: 'ruuk', pitch: 1.15, rate: 1.08, pick: 3 },
 ];
 
 export class AideVoice {
