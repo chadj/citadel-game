@@ -45,7 +45,9 @@ reveals the map, and how the fog is shown.
     | A shot in flight, or an Interceptor missile | 130 px near the ground, growing with altitude, up to 500 px at the top of a high Battery shot |
     | An infected unit, for the Worm's owner | As far as the unit itself sees |
 
-  - The implementation chooses how sight grows between these.
+  - These are typical cases. Sight follows the altitude of the top, so
+    a low unit standing high sees further than its row. The
+    implementation chooses the curve.
   - **A Spire always sees the furthest**, wherever it stands.
 - **What's revealed is centered where the revealer appears on screen**,
   not on its position on the map. So high things reveal an area shifted
@@ -81,8 +83,8 @@ each one sees is under How far things see, above.
   - Each fragment of a Scatter Shell, and each Proximity Charge of the
     three, reveals on its own.
 - **An Interceptor missile**, for the Interceptor's side.
-  - It reveals from the moment the launcher fires, at the launcher's
-    top, and then moves with the missile.
+  - It reveals from the moment the Interceptor fires, at the
+    Interceptor's top, and then moves with the missile.
   - It stops when the chase ends.
   - So a side whose Interceptor fires briefly sees where the enemy's shot
     is.

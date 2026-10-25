@@ -99,7 +99,7 @@ if any of these are true:
 The round ends when every player is out for the round. Then, in this
 order:
 1. The game announces that the round is over.
-2. **Rovers move**, one at a time, in the order they were launched
+2. **Rovers move**, one at a time, in the order they landed
    (chapter 07). This takes a moment to watch, because each Rover
    drives step by step.
 3. **Income is paid** to every player who still has a Citadel and is
@@ -125,7 +125,9 @@ of the game are settled before the next round starts.
 - The screen shows how much energy the player will
   get at the end of the round: Extractors, the Citadel, and energy put
   aside. It doesn't count the energy they have now.
-- Destroying an enemy's Citadel pays 7 straight away.
+- Destroying an enemy's Citadel pays 7 straight away. It goes to the
+  player's current energy, not to energy put aside, and the cap of 35
+  applies.
 - A player with no Citadel gets no income. Neither does one who has
   disconnected.
 
@@ -171,9 +173,10 @@ the end of each round.
 - **A team is still in the game** while any of its members still has a
   Citadel. Without teams, every player is a team of one.
 - **The game ends when fewer than two teams are left.** The team that's
-  left wins.
-- **The game also ends if no human is left.** If none of the players
-  still in the game is a connected human, the game ends with no winner.
+  left wins, even if only computers are left in it.
+- **The game also ends if no human is left.** Otherwise, if none of
+  the players still in the game is a connected human, the game ends
+  with no winner.
   - Every human then sees the defeat screen.
 - When the game ends, each player sees a victory screen if their team
   won, and a defeat screen otherwise. A game summary follows (chapter

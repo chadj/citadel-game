@@ -273,8 +273,9 @@ the round. Its blast reaches about 180 px and destroys any Barrier.
     buildings is a free blast. Shoot it.
 - **Charge its path.** An armed Charge within about 90 px of its line
   goes off as it passes and destroys it. Its own blast follows.
-- **A Rover underwater** can't be shot: shots that land on water
-  splash. Charges and blasts still reach it.
+- **A Rover underwater** is hard to shoot: shots that land on water
+  splash. Charges, blasts and Worms from close by on low ground still
+  reach it, and a nearby Pulse disables it as usual.
 
 ### Against Pulses and Worms
 
@@ -373,7 +374,7 @@ Shots can't enter an enemy dome. Ways in:
 - **Mind its landing.** A Rover that lands within about 12 px of any
   conduit explodes on the spot, even its own side's.
 - **Water is cover.** A Rover that lands in water drives underwater,
-  where shots can't reach it.
+  where it's hard to shoot.
 - **Turn an Interceptor against itself.** Throw the Rover low and
   short, so it lands near the Interceptor before the missile can
   catch it. The missile still reaches it on the ground, and the Rover

@@ -121,7 +121,7 @@ copying numbers.
   | Full power | 500 px away | 2.5 seconds | 150 px |
   | Full power from a Battery | 900 px away | 3.5 seconds | 300 px |
 
-  Without drag, a full-power Outpost shot would carry about a tenth
+  Without drag, a full-power Outpost shot would carry about a fifth
   further.
 - **Landing.** The flight ends when the shot comes down to the ground
   beneath it. A collision with a unit, a Barrier or Interceptor fire can
@@ -152,8 +152,9 @@ this as a tactic.
     launcher.
   - A building doesn't feel it until its conduit starts to pay out.
     Chapter 05 has the details.
-- **Wind also turns off drag** in its direction. Players notice this more
-  than the push itself.
+- **Wind also turns off drag** along its direction, whether the shot
+  flies with the wind or against it. Players notice this more than the
+  push itself.
   - A strong tailwind barely pushes the shot, because the shot is
     already moving faster than the drift speed. The shot still goes
     further, because nothing slows it down. A full-power Outpost shot

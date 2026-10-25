@@ -279,7 +279,7 @@ everything the rules depend on:
   working, disabled or infected, and for how long;
 - every conduit and its nodes;
 - the fog of war counts for every side;
-- the counts the rules keep, such as the shared conduit node count;
+- the counts the rules keep;
 - whether the game is over, and who won.
 
 It leaves out anything that only changes how the game looks or sounds,

@@ -122,7 +122,7 @@ Keep these relationships when choosing exact sizes:
   - It usually catches the shot within about half a second to a second
     and a half.
   - What happens in unusual cases: chapter 06.
-- After firing, the launcher is disabled for one turn cycle while it
+- After firing, the Interceptor is disabled for one turn cycle while it
   reloads (chapter 03). That's true even if the missile fails.
 - **Barriers can stop the missile.** The missile obeys the same rule as a
   shot: it can't cross the edge of a dome belonging to an enemy. For the
@@ -138,7 +138,7 @@ Keep these relationships when choosing exact sizes:
     shots as they fly past it.
   - The rule also works the other way. If an enemy puts a Barrier over
     your Interceptor, its missile starts inside that dome and is
-    destroyed as soon as it tries to leave. The launcher is then nearly
+    destroyed as soon as it tries to leave. The Interceptor is then nearly
     useless, except against shots that stay inside the same dome.
   - Barriers of the Interceptor's own side, or of its teammates, never
     stop its missiles. Neither do disabled Barriers.

@@ -46,8 +46,9 @@ things when its edge reaches them, not only its center.
 - A building in flight is small until shortly after the top of its arc.
   Then it takes on its full footprint (chapter 05).
 - Units of every side count, the player's own included.
-- **Pontoons are never hit.** A Pontoon's tile counts as ground, so a shot
-  just lands on it.
+- **Pontoons are never struck directly.** A Pontoon's tile counts as
+  ground, so a shot lands on it and explodes there. Explosions and
+  blasts still damage the Pontoon.
 - **Sky Probes** are hit only by enemy shots, and by any other Sky
   Probe. The Sky Probe is destroyed, and the shot ends there as a direct
   hit. Friendly shots fly straight through.
@@ -77,14 +78,14 @@ things when its edge reaches them, not only its center.
 - It fires as soon as the shot comes within about 180 px of it,
   measured across the ground. The shot's altitude doesn't matter.
 - **Only one missile chases each shot.** Once a shot is being chased, no
-  other launcher fires at it, even if the chase later fails.
-- **Choice: which launcher fires.** When more than one Interceptor could
-  fire, it needn't be the nearest one. A pick that players can't easily
-  predict keeps defenses interesting: a player can't be sure which of
-  several Interceptors will answer a shot. The implementation designs
-  its own pick. It must be deterministic, so every client picks the same
-  one.
-- After firing, the launcher is disabled for one turn cycle (chapter
+  other Interceptor fires at it, even if the chase later fails.
+- **Choice: which Interceptor fires.** When more than one Interceptor
+  could fire, it needn't be the nearest one. A pick that players can't
+  easily predict keeps defenses interesting: a player can't be sure
+  which of several Interceptors will answer a shot. The implementation
+  designs its own pick. It must be deterministic, so every client picks
+  the same one.
+- After firing, the Interceptor is disabled for one turn cycle (chapter
   03), whatever happens to the missile.
 
 ### The chase
@@ -114,7 +115,7 @@ things when its edge reaches them, not only its center.
     burst and a miss sound. It does no damage.
   - If the shot ends before the missile has even left, the missile gives
     up without leaving.
-  - The launcher still reloads for a full turn cycle.
+  - The Interceptor still reloads for a full turn cycle.
 - **A Barrier stops the missile.** The missile obeys the Barrier rule as
   if it were a shot of the Interceptor's side. So it's stopped by
   entering a dome of that side's enemies, or by leaving one it started
@@ -221,7 +222,7 @@ A ground hit leaves a crater (chapter 02). Air bursts don't.
 - In the outer zone, a fragment does 0.7: half of 1.5, rounded down to
   one decimal place.
 - Each fragment is a separate shot. An Interceptor fires once and
-  then reloads, so one launcher can stop only one of the three. That's
+  then reloads, so one Interceptor can stop only one of the three. That's
   how a Scatter Shell gets past Interceptors.
 
 ### Seeker
@@ -239,7 +240,7 @@ A ground hit leaves a crater (chapter 02). Air bursts don't.
   - It never overshoots the target.
 - **Skimming.** While it's homing, it can't land on dry ground. It skims
   just above the surface until it hits something. Only water, or a
-  Pontoon's tile, lets it land.
+  Pontoon's tile (which counts as ground), lets it land.
   - In practice it only reaches the surface in its final dive at the
     target. So it lands in water only when the target is at the
     water's edge, or is an underwater Rover. Then it splashes and does
@@ -323,7 +324,7 @@ A ground hit leaves a crater (chapter 02). Air bursts don't.
   - the unit it struck, if that unit is damaged;
   - otherwise the damaged unit nearest the landing point, within about
     30 px of its edge. Height doesn't matter.
-- It works on water too, for example on a Pontoon.
+- It works anywhere, water included, so it can repair a Pontoon.
 - If no damaged unit is in range, nothing happens.
 
 ### Salvager
@@ -332,7 +333,7 @@ A ground hit leaves a crater (chapter 02). Air bursts don't.
 - **Which unit:** the unit it struck, or else the nearest one whose edge
   is within about 20 px of the landing point, at about the same height.
 - **How much:**
-  - One of the player's own units: all of its armor.
+  - One of the player's own units, or a teammate's: all of its armor.
   - An enemy unit, or any unit with a Worm: up to 3.
 - **Taking all of a unit's armor destroys it.** It's salvaged: it
   doesn't explode, and leaves no crater. Its conduits burn as usual

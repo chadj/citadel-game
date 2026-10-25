@@ -67,9 +67,9 @@ What isn't checked here:
   2. P2 passes. P2's 11 is put aside, and shows as 0. P2 is out for the
      round.
   3. P1 launches a Shell: 4 − 1 = 3. P1 now has the round to
-     themself, so each of their turns gets about three quarters of the
-     last one's time, down to about 10 seconds.
-  4. P1 lets the clock run out: 3 − 1 = 2. P1 is still in the round.
+     themself.
+  4. P1's next turn gets about three quarters of the last one's time.
+     P1 lets the clock run out: 3 − 1 = 2. P1 is still in the round.
   5. P1 passes. The round ends.
   6. Income: P1 gets 2 + 7 = 9. P2 gets 11 + 7 = 18.
   7. Round 2 starts with P2.
