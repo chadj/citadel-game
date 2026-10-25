@@ -111,6 +111,64 @@ What slopes mean for play:
     survives. Chapter 05 has the details.
   - A Rover on it just drops into the water.
 
+### Landforms
+
+- **Terrain follows the tile grid.** Each point where four tiles meet
+  sits on one level. A tile's shape follows from its four corners.
+- **A tile mixes at most two levels:** Ground and Plateau, Plateau and
+  Mountain, or Ground and water. Never three, and never Ground with
+  Mountain.
+- **Water never shares a tile with a cliff.** There's always some
+  Ground between a cliff and the water.
+
+**Cliff pieces.** For each pair of neighboring levels, every corner
+combination has its own piece, in all four facings:
+- **Flat:** all four corners on one level.
+- **Straight edge:** the two corners along one side are high. A
+  straight cliff crosses the tile, parallel to that side.
+- **Outside corner:** one corner is high. The cliff cuts across the
+  tile diagonally, around the high corner. Most of the tile is slope.
+- **Inside corner:** three corners are high. The cliff cuts across the
+  one low corner. Most of the tile is the upper level.
+- **Saddle:** two opposite corners are high. Two cliffs pass each
+  other in the middle, and almost the whole tile is slope.
+
+**Diagonal cliffs.** A run of outside and inside corners stepping
+across the grid makes a cliff at 45°. Maps should use them freely, so
+landforms aren't all squares and rectangles. Where two diagonal runs
+touch at a point, a saddle joins them.
+
+**Pieces join smoothly.** A cliff must flow from one tile into the
+next without a step or a gap.
+- Where a straight edge meets a corner, the edge's end is shaped to
+  turn into that corner. Either end may turn, or both.
+- Inside corners, outside corners and saddles are shaped the same way
+  where they meet other pieces: at one end, the other, or both.
+- The slope stays about the same width throughout (see Slopes).
+
+**Water** always lies in Ground. Its edge is a narrow shore slope.
+- **Channels** run through tiles from edge to edge, about half a tile
+  wide: straight, bends, T-junctions, crossings, and dead ends.
+- **Ponds:** a small round pond inside a single tile.
+- **Lakes and seas:** open water filling whole tiles, edged by
+  shores:
+  - straight shores;
+  - outside corners, with water in one corner of the tile;
+  - points of land poking into open water, small and rounded, in one,
+    two or three corners of a tile, opposite corners included.
+- **Channels open into lakes.** A channel tile can widen into one or
+  more of its corners.
+- A channel is narrow enough for one Pontoon to bridge.
+
+**Variety.**
+- Each level's plain surface, and open water, comes in several looks,
+  mixed so the grid doesn't show.
+- Common pieces may have alternative looks, picked at random.
+- Maps may come with craters painted on flat ground, any level, larger
+  than a tile. Like the ones explosions leave, they are marks only.
+
+**Generated maps** use all of these pieces and follow the same rules.
+
 ### How height affects play
 
 - A unit stands on the ground where it lands. Its base is the ground's
