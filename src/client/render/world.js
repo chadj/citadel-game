@@ -16,7 +16,6 @@
 // Units, shots and nodes are drawn from where the rules have them,
 // lifted by half their altitude (spec 01, The view).
 
-import * as Phaser from 'phaser';
 import {
   PX, FOG_CELL, PULSE_REACH, PULSE_DELAY, INTERCEPTOR_RANGE, CHARGE_TRIGGER, DOME_RADIUS,
   FULL_FOOTPRINT_DELAY, TILE,
@@ -96,8 +95,6 @@ export class WorldView {
     const w = (fog.cells + 2) * FOG_SUB;
     if (scene.textures.exists('fog')) scene.textures.remove('fog');
     this.fogTex = scene.textures.createCanvas('fog', w, w);
-    // Sharp pixels, so the dithered edge isn't blurred.
-    this.fogTex.setFilter(Phaser.Textures.FilterMode.NEAREST);
     this.fogData = this.fogTex.getContext().createImageData(w, w);
     for (let k = 0; k < 9; k++) {
       const img = scene.add.image(0, 0, 'fog').setOrigin(0, 0).setDepth(DEPTH.fog).setScale(FOG_CELL / PX / FOG_SUB);

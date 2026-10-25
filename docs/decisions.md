@@ -687,11 +687,10 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     less energy put aside coming back.
   - **Effects in the fog** (spec 08: they show through it) glow over
     the black, and their smoke and debris turn pale there.
-  - **The fog's edge** (spec 08: soft, not a grid of squares) is
-    dithered, not blurred: the fog picture has 8 pixels per fog cell
-    (dots under 4 px), drawn sharp. Each pixel blends the four nearest
-    cells; the middle 70% of that blend fades through a 4 × 4 ordered
-    dither pattern. The edge is about 20 px wide, with rounded corners.
+  - **The fog's edge** (spec 08: soft, not a grid of squares): the
+    fog picture has 4 pixels per fog cell; each pixel blends the four
+    nearest cells, and the middle 40% of that blend becomes the edge,
+    eased. The edge is about 10 px wide, with rounded corners.
   - **Explosions** are mostly fire: a white flash, a fireball that
     swells to the blast's radius and burns down over about 1 to 1.5 s,
     a shock ring and thrown embers. A light trail of smoke follows as
