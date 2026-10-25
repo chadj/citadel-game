@@ -686,9 +686,12 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     the end of a round. Energy earned is income and Citadel bonuses,
     less energy put aside coming back.
   - **Effects in the fog** (spec 08: they show through it) glow over
-    the black, and their smoke and debris turn pale there. Explosions
-    and blasts leave smoke that rises and spreads for about 3 to 4 s,
-    as do units destroyed without a blast.
+    the black, and their smoke and debris turn pale there.
+  - **Explosions** are mostly fire: a white flash, a fireball that
+    swells to the blast's radius and burns down over about 1 to 1.5 s,
+    a shock ring and thrown embers. A light trail of smoke follows as
+    the fire dies, gone in about 2 to 3 s; units destroyed without a
+    blast leave the same.
   - **A damaged unit smokes** for as long as it's damaged, through the
     fog too (spec 04, Damage): more smoke, and sparks, when it's badly
     damaged (40% of its armor or less). Over the fog the smoke is pale
