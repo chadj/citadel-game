@@ -415,3 +415,57 @@ on 2026-10-25. Exact numbers chosen during tuning go in
   - Once a player is out for the round, they stay out until the next
     round, even if their energy rises again (for example from a
     Citadel bonus).
+
+## D31. Conduits, building landings and Pontoons
+- **Date:** 2026-10-25
+- **Spec:** 05 (all of it but the lights and fog); 02 Pontoons; 06
+  Shots in the air, Units
+- **Question:** The spec gives targets and outcomes for conduits; how
+  exactly do they work in the rules?
+- **Decision:**
+  - **Where the conduit starts.** The first node lies 20 px beyond the
+    launcher's footprint, so 35 px from an Outpost's center, exactly on
+    the launch heading. With the 12 px clearance between nodes, two
+    conduits from one Outpost break below about 20° apart
+    (2 × 35 × sin 10° ≈ 12 px). The warning checks for any node of the
+    launcher's conduits (in or out) within 18 px of where the new first
+    node would lie, which is about 30°. A building launched while the
+    warning shows is refused unless the move says `override: true`.
+  - **Laying.** The conduit starts on the first tick the building's
+    track over the ground is 35 px or more long; the wind starts acting
+    on it that same tick. Later nodes lie every 15 px along that track,
+    trailing behind the building by its falling speed times 2 ticks, up
+    to 20 px. On a good landing the nodes left are laid up to the
+    building's footprint.
+  - **Nodes** keep their place across the ground and fall straight down
+    at the shots' gravity from the altitude they were laid at. A node
+    breaks its conduit where it comes to rest on water, inside a unit's
+    footprint (not a Pontoon's, a Sky Probe's, or its own building's;
+    D6), or within 12 px of a node of another conduit.
+  - **A building that comes down before its conduit started** (only
+    possible from a much higher launcher) fails.
+  - **Collisions in the air** are checked along each tick's move: the
+    closest the move comes to a unit's center across the ground, while
+    its altitude range overlaps the unit's base to top. Shots are 3 px
+    across; a building takes its full footprint 6 ticks (0.2 s) after
+    the top of its arc. Pontoons are never struck; a Sky Probe only by
+    enemy shots.
+  - **Landing checks**, in order: the conduit has broken; water; slope
+    (only the exact landing point); another conduit's node within 3 px
+    of the footprint. Barriers, Interceptors and Charges come in M4.
+  - **Burns.** Each node burns 6 ticks (0.2 s) after the one before it.
+    A node already due to burn keeps the earlier time. The building at
+    the far end of a burning conduit is destroyed 6 ticks after the last
+    node burns, unless it's the building whose destruction started the
+    burn. Who gets the credit is whoever was credited with what started
+    it; for a break, the player whose turn it is. A building destroyed
+    because its own conduit broke has failed its landing; when units
+    that explode come in (M4), it won't explode.
+  - **The turn waits** while any shot flies, any node falls, or any burn
+    is still going.
+  - **Pontoons.** A destroyed Pontoon's tile is water at once, and the
+    buildings standing on it are destroyed at once, without exploding.
+    Each resting node in the tile falls in 9 ticks (0.3 s) later and
+    burns both ways from there, which dooms the building at the far
+    end. A Pontoon is lost if it comes down on anything but water, or
+    in a tile that already holds a Pontoon or a Rover.

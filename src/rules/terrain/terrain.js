@@ -18,6 +18,20 @@ import {
 } from '../constants.js';
 import { wrap } from '../math/wrap.js';
 
+// The index of the tile holding (x, y): y * tiles + x.
+export function tileIndex(map, x, y) {
+  const tx = Math.floor(wrap(x, map.size) / TILE);
+  const ty = Math.floor(wrap(y, map.size) / TILE);
+  return ty * map.tiles + tx;
+}
+
+// The center of a tile, in position units.
+export function tileCenter(map, index) {
+  const tx = index % map.tiles;
+  const ty = (index - tx) / map.tiles;
+  return { x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2 };
+}
+
 // The terrain at (x, y), in position units. `pontoons` optionally maps
 // a tile index (y * tiles + x) to a Pontoon's top altitude: the whole
 // tile is then flat ground at that altitude (spec 02, Pontoons;

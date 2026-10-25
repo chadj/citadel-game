@@ -89,4 +89,25 @@ export const MAX_COMPUTERS = 3;
 export const FACTIONS = 4;
 export const COLORS = 6;
 
+// Shots in the air (spec 06, Shots in the air; spec 05, As the building
+// comes down; decision D17).
+export const SHOT_RADIUS = px(3);
+export const FULL_FOOTPRINT_DELAY = 6; // ticks after the top of the arc: about 0.2 s
+
+// Conduits (spec 05; decision D31).
+export const NODE_SPACING = px(15); // about 15 px apart
+// The first node lies this far beyond the launcher's footprint. With the
+// 12 px clearance, it makes two conduits from one Outpost break at about
+// 20° apart, and the warning come on at about 30° (spec 05).
+export const CONDUIT_START_GAP = px(20);
+export const NODE_CLEARANCE = px(12); // nodes of different conduits
+export const WARNING_DISTANCE = px(18); // about 30° at the first node
+export const LANDING_CLEARANCE = px(3); // "a few pixels" from a landing building's footprint
+// Nodes trail behind the building, more so as it comes down: by its
+// falling speed times this many ticks, up to the most.
+export const NODE_TRAIL_TICKS = 2;
+export const NODE_TRAIL_MAX = px(20);
+export const BURN_TICKS = 6; // about 0.2 s per node
+export const PONTOON_FALL_DELAY = 9; // "a moment" before conduits fall in: about 0.3 s
+
 export { PX, VEL, ONE };

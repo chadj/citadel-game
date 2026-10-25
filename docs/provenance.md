@@ -86,3 +86,16 @@ entries in `decisions.md` it relies on.
 - **Spec:** 12 Replays (what a replay records, refusing other rules
   versions), Determinism checks 1 and 3.
 - **Decisions:** D30.
+
+## Buildings, conduits and Pontoons
+- **Files:** `src/rules/conduits.js`, `src/rules/shots.js`,
+  `src/rules/game.js` (building launches, the tick, destroying units),
+  `src/rules/terrain/terrain.js` (tiles, Pontoons on the terrain)
+- **Spec:** 05 Laying the conduit, As the building comes down,
+  Landing (all but Barriers, Interceptors and Charges, which come with
+  M4), How close things can be, Conduits that break, Aiming along your
+  own conduit, When a building is destroyed, Conduits across a Pontoon;
+  02 Water, Pontoons, Energy Vents (an Extractor on a vent); 06 Shots
+  in the air (Units), Pontoon, The turn waits; 01 Wind (on buildings
+  once the conduit starts); Appendix A 02 and 05.
+- **Decisions:** D4, D5, D6, D17, D29, D31.
