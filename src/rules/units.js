@@ -34,7 +34,17 @@ export const UNIT_KINDS = Object.freeze({
 export function addUnit(state, { kind: k, owner, x, y, base, citadel = false }) {
   const spec = UNIT_KINDS[k];
   if (!spec) throw new Error(`no unit kind "${k}"`);
-  const unit = { id: state.nextId++, kind: k, owner, x, y, base, armor: spec.armor, citadel, disabledUntil: 0 };
+  const unit = {
+    id: state.nextId++, kind: k, owner, x, y, base, armor: spec.armor, citadel, disabledUntil: 0,
+    worm: null, // the Worm infecting it (worm.js)
+    wormsHad: [], // the Worms that have infected it
+    landing: false, // it has come down, but an Interceptor missile is still after it
+  };
+  if (k === 'barrier') unit.up = false; // its dome comes up at the next change of turn
+  if (k === 'charge') {
+    unit.armed = false; // once everything from its launch has settled
+    unit.triggered = false;
+  }
   state.units.push(unit);
   return unit;
 }

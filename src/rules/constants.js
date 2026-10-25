@@ -110,4 +110,71 @@ export const NODE_TRAIL_MAX = px(20);
 export const BURN_TICKS = 6; // about 0.2 s per node
 export const PONTOON_FALL_DELAY = 9; // "a moment" before conduits fall in: about 0.3 s
 
+// Shot explosions (spec 06, Shot explosions, Weapons; decision D32).
+// Radii are measured to a unit's edge. Damage is in tenths.
+export const SHELL_DAMAGE = 30;
+export const SHELL_DIRECT = px(40);
+export const SHELL_GROUND = px(30);
+export const FRAGMENT_DAMAGE = 15;
+export const FRAGMENT_DIRECT = px(40);
+export const FRAGMENT_GROUND = px(20);
+export const PULSE_DAMAGE = 20;
+export const PULSE_RADIUS = px(30);
+export const PULSE_REACH = px(200); // disables, across the ground
+export const PULSE_DELAY = 45; // about 1.5 s after landing
+export const SURGE_DAMAGE = 30;
+export const SURGE_DIRECT = px(40);
+export const SURGE_GROUND = px(30);
+export const SURGE_TICKS_PER_NODE = 4; // about 7 nodes a second
+export const SURGE_FADE_NODES = 50; // nothing is left after about 50 nodes
+export const WORM_REACH = px(50); // in 3D
+export const WORM_DAMAGE = 10;
+export const WORM_FLOOR = 1; // the Worm never takes a unit below 0.1
+export const REPAIR_AMOUNT = 10;
+export const REPAIR_REACH = px(30);
+export const SALVAGE_REACH = px(20);
+export const SALVAGE_ENEMY_MAX = 30; // up to 3 from an enemy, or a unit with a Worm
+export const SALVAGE_STEP = 10; // 1 armor
+export const SALVAGE_TICKS = 30; // about every second
+
+// Splitting shots (spec 06, Scatter Shell, Proximity Charges).
+export const SCATTER_SPREAD = 20; // degrees to either side
+export const CHARGES_SPREAD = 35;
+export const SPLIT_SPEEDUP = Math.round(ONE * 1.1); // "a little faster"
+
+// The Seeker (spec 06, Seeker; decision D17).
+export const SEEKER_RANGE = px(240); // across the ground
+export const SEEKER_STEER_TICKS = 30; // steering grows to full over about 1 s
+export const SKIM_HEIGHT = px(1); // above dry ground while homing
+// It homes at least this fast, so it always reaches its target: about 200 px/s.
+export const SEEKER_MIN_SPEED = Math.round((200 * VEL) / TICKS_PER_SECOND);
+
+// Blasts (spec 04, When a unit is destroyed; spec 06, Blasts).
+export const EXTRACTOR_BLAST = Object.freeze({ damage: 50, radius: px(150), delay: 24 }); // 0.8 s
+export const CHARGE_BLAST = Object.freeze({ damage: 30, radius: px(90), delay: 15 }); // 0.5 s
+export const ROVER_BLAST = Object.freeze({ damage: 40, radius: px(180), delay: 30 }); // 1 s
+
+// Barriers (spec 04 Barrier; spec 06 Barriers).
+export const DOME_RADIUS = px(160);
+
+// Proximity Charges (spec 04, spec 06).
+export const CHARGE_TRIGGER = px(90); // in 3D
+export const CHARGE_NODE_CLEARANCE = px(15);
+
+// Interceptors (spec 04, spec 06; decision D33). Speeds in VEL units per
+// tick. Tuned with tools/calibrate-missile.js.
+export const INTERCEPTOR_RANGE = px(180); // across the ground
+export const MISSILE_DELAY = 9; // about 0.3 s
+export const MISSILE_ACCEL = 65000; // per tick: about 900 px/s²
+export const MISSILE_MAX_SPEED = 1500000; // about 690 px/s
+export const MISSILE_CATCH = px(4);
+
+// The Sky Probe's stop (spec 04, spec 06; decision D34). Offsets in
+// position units.
+export const PROBE_STOP_TICKS = 45; // about 1.5 s
+export const PROBE_DEPLOY_TICK = 4; // it takes its full footprint here
+export const PROBE_DIP_TICKS = 8;
+export const PROBE_DIP = px(6);
+export const PROBE_RISE = px(33); // it ends a bit above the top of its arc
+
 export { PX, VEL, ONE };

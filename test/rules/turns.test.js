@@ -26,7 +26,7 @@ test('a launch costs its level, and the turn passes once it lands', () => {
   shell(game);
   assert.equal(energy(game, 0), 100);
   assert.equal(whoseTurn(game), 1);
-  assert.ok(game.events.some((e) => e.type === 'land'));
+  assert.ok(game.events.some((e) => e.type === 'explosion'));
 });
 
 test('launches that don\'t count leave the game unchanged', () => {

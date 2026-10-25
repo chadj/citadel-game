@@ -469,3 +469,95 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     burns both ways from there, which dooms the building at the far
     end. A Pontoon is lost if it comes down on anything but water, or
     in a tile that already holds a Pontoon or a Rover.
+  - The user confirmed the Pontoon timing (buildings at once, conduits
+    a moment later), reading 02's "at once" with 05's "a moment later".
+
+## D32. Shots in the air, explosions and blasts — Ours
+- **Date:** 2026-10-25
+- **Spec:** 04 When a unit is destroyed; 06 Shots in the air, Explosions
+  and damage, Weapons
+- **Question:** In what order are things checked, and how exactly are
+  explosions, blasts and domes measured?
+- **Decision:**
+  - **Each tick, in order:** shots move; Interceptors fire at shots that
+    have come into range; missiles move; conduit nodes fall; burns move
+    on; waiting effects (blasts, Pulses, Surges, Salvagers) go off;
+    buildings reached by burns are destroyed. For each shot: a dome, a
+    unit, a Charge, then the ground. Shots go in the order they were
+    launched; a Scatter Shell's or Charges' new parts follow.
+  - **Domes:** a point is inside if it's no lower than the Barrier's
+    base and less than 160 px from the base in 3D. Where a shot or
+    missile is stopped is found by halving its move. "Started inside"
+    is checked where a shot is launched, and for a missile where it
+    leaves its Interceptor.
+  - **Shot explosions:** ground gap to the unit's edge ≤ radius, and
+    height gap ≤ radius (D17); full damage if the ground gap is at most
+    half the radius, else half rounded down to a tenth.
+  - **Blasts** start from the exploding unit's center, halfway up, and
+    reach a unit if its nearest part is within the radius in 3D.
+  - **Where a Charge is measured from:** a shot, landing or node sets
+    off the nearest armed Charge whose nearest part is within 90 px in
+    3D. A building coming down near one fails with reason 'charge',
+    checked before water and slope, so the Charge goes off wherever it
+    lands near one.
+  - **Splits:** the two outer parts turn by the spread and move 10%
+    faster across the ground.
+  - **Craters** are only events for the screen; they aren't game state.
+
+## D33. Interceptors — Ours
+- **Date:** 2026-10-25
+- **Spec:** 04 Interceptor; 06 Interceptors (Choice: which Interceptor
+  fires)
+- **Decision:**
+  - **Which one fires:** of the working enemy Interceptors within 180 px
+    across the ground, sorted by id, the one picked by a hash of the
+    shot's id and the tick. The same on every machine, not the nearest.
+  - **The chase:** after 9 ticks (0.3 s), the missile flies straight at
+    where its target is now, speeding up by about 900 px/s² to about
+    690 px/s, never below the ground. It catches when it can reach the
+    target within its move, plus 4 px. Measured by
+    `tools/calibrate-missile.js`: typical chases 0.6–1.0 s, up to about
+    1.3 s against shots climbing away near the launcher. Shots that
+    come into range only just before they land can get away.
+  - **A unit still landing** that the missile reaches is destroyed as a
+    failed landing: an Extractor doesn't explode.
+
+## D34. The Sky Probe's stop — Ours
+- **Date:** 2026-10-25
+- **Spec:** 04 Sky Probe; 06 Sky Probe
+- **Decision:** For 45 ticks (1.5 s) from the top of its arc, gravity,
+  drag and wind act on its movement across the ground as usual, and its
+  speed across the ground is then scaled down evenly to nothing. Its
+  altitude follows a fixed curve from the top of its arc: a 6 px dip
+  over the first 8 ticks, then an easing rise to 33 px above it. It
+  takes its full footprint 4 ticks in. Full power from an Outpost stops
+  420 px away at altitude 200; at the lowest power it goes about 110 px,
+  further than a Shell.
+
+## D35. Weapon and tool details — Ours
+- **Date:** 2026-10-25
+- **Spec:** 06 Seeker, Pulse, Surge, Worm, Repair Pod, Salvager
+- **Decision:**
+  - **Seeker:** each tick from the top of its arc until it locks on, it
+    looks for the nearest unit of another side within 240 px across the
+    ground and within 45° of its heading (D17). Once locked, its
+    velocity is blended toward a straight line at the target's base at
+    its present speed (at least about 200 px/s, so it never stalls), by
+    a share that grows from 1/30 to all of it over 30 ticks. While
+    homing it skims 1 px above dry ground.
+  - **Pulse:** goes off 45 ticks (1.5 s) after landing. A unit with a
+    Worm has the Worm's end pushed back one lap (N steps) and stays
+    disabled until then.
+  - **Surge:** 4 ticks a node (7.5 nodes a second). After passing n
+    nodes, 3 × (50 − n) / 50 is left, rounded down to a tenth: 1.8 after
+    20. A Surge that hits a node counts that node as the first passed,
+    both ways. It stops if the next node has burned away.
+  - **Worm:** a Worm never infects the same unit twice. So two units it
+    infected together, with a conduit between them, don't pass it back
+    and forth. It spreads only along conduits that have landed and
+    aren't burning.
+  - **Salvager:** takes 1 armor 30 ticks after landing and every 30
+    ticks after. The last take may be less than 1. "About the same
+    height" means a height gap of at most 20 px, the same as its reach.
+  - **Repair Pod:** a struck unit that isn't damaged doesn't block the
+    search for a damaged unit within 30 px.

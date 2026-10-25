@@ -99,3 +99,16 @@ entries in `decisions.md` it relies on.
   in the air (Units), Pontoon, The turn waits; 01 Wind (on buildings
   once the conduit starts); Appendix A 02 and 05.
 - **Decisions:** D4, D5, D6, D17, D29, D31.
+
+## Weapons, tools, Barriers, Interceptors and free-standing units
+- **Files:** `src/rules/shots.js`, `src/rules/weapons.js`,
+  `src/rules/combat.js`, `src/rules/barriers.js`,
+  `src/rules/interceptors.js`, `src/rules/worm.js`, `src/rules/game.js`
+  (the tick, destroying units), `tools/calibrate-missile.js`
+- **Spec:** 04 (all units but the Rover's driving, which comes with
+  M5); 06 Shots in the air, Interceptors, Explosions and damage,
+  Weapons, Tools, Free-standing units in flight (all but the Rover),
+  Turn cycles used here, The turn waits; 05 Landing (Barriers,
+  Interceptors, Charges), Conduits that break (Charges); 03 Turn cycles;
+  Appendix A 04 and 06.
+- **Decisions:** D2, D3, D7, D12, D14, D15, D17, D32, D33, D34, D35.

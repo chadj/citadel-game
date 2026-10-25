@@ -15,6 +15,7 @@
 //     path,        // [{ x, y, d }]: the building's track over the ground while it flies
 //     broken,      // a node settled where it mustn't; no more nodes are laid
 //     doomAt, doomCredit, // when the building at the far end goes, and who gets the credit
+//     doomFails,   // whether that counts as its landing failing (a break while laying)
 //     nodes: [{ x, y, z, vz, resting, burnAt }],
 //   }
 //
@@ -48,6 +49,7 @@ export function createConduit(state, { owner, launcher, shot }) {
     broken: false,
     doomAt: null,
     doomCredit: null,
+    doomFails: false,
     nodes: [],
   };
   state.conduits.push(conduit);
@@ -142,7 +144,8 @@ export function fallNodes(state, terrain) {
 }
 
 // Why a node that has just come to rest breaks its conduit, or null
-// (spec 05, Conduits that break). Armed Charges come in M4.
+// (spec 05, Conduits that break). A node near an armed Charge is
+// checked by the caller, since the Charge then goes off.
 export function breakReason(state, conduit, node, groundType, size) {
   if (groundType === WET) return 'water';
   for (const u of state.units) {
@@ -178,9 +181,11 @@ export function nodeNearFootprint(state, x, y, radius, own, size) {
 // BURN_TICKS per node. A node already burning burns at whichever time
 // comes first. `origin` says where it started: 'child' when the
 // building at the far end was destroyed, 'parent' when the launcher
-// was, or 'break'. Unless the building at the far end is what was
+// was, 'break' when a node broke it as it was laid, or 'sink' when a
+// Pontoon under it went. Unless the building at the far end is what was
 // destroyed, it goes once the burn reaches it (spec 05, Conduits that
-// break, When a building is destroyed).
+// break, When a building is destroyed). After a break, that building's
+// landing has failed, so it doesn't explode (spec 04, Extractor).
 export function burn(conduit, index, at, origin, credit) {
   let last = at;
   conduit.nodes.forEach((node, j) => {
@@ -194,11 +199,12 @@ export function burn(conduit, index, at, origin, credit) {
   if (conduit.doomAt === null || doom < conduit.doomAt) {
     conduit.doomAt = doom;
     conduit.doomCredit = credit;
+    conduit.doomFails = origin === 'break';
   }
 }
 
 // One tick of burning. Returns the buildings whose time has come, as
-// [unitId, credit], and drops conduits that have burned away.
+// [unitId, credit, fails], and drops conduits that have burned away.
 export function advanceBurns(state, onNodeBurnt) {
   const doomed = [];
   for (const conduit of state.conduits) {
@@ -206,7 +212,7 @@ export function advanceBurns(state, onNodeBurnt) {
       if (node.burnAt === state.tick) onNodeBurnt(conduit, index);
     });
     if (conduit.doomAt !== null && conduit.doomAt <= state.tick) {
-      doomed.push([conduit.to, conduit.doomCredit]);
+      doomed.push([conduit.to, conduit.doomCredit, conduit.doomFails]);
       conduit.doomAt = null;
     }
   }

@@ -7,7 +7,7 @@
 import { launch, flyToGround } from '../../src/rules/flight.js';
 import { applyMove, settle, destroyUnit } from '../../src/rules/game.js';
 import { sampleTerrain, tileIndex } from '../../src/rules/terrain/terrain.js';
-import { UNIT_KINDS, findUnit, unitTop, citadelOf } from '../../src/rules/units.js';
+import { UNIT_KINDS, addUnit, findUnit, unitTop, citadelOf } from '../../src/rules/units.js';
 import { POWER_MAX, PX } from '../../src/rules/constants.js';
 import { delta } from '../../src/rules/math/wrap.js';
 import { whoseTurn } from './setups.js';
@@ -87,3 +87,30 @@ export function richPlayers(game) {
 
 // Unit positions in pixels.
 export const pos = (unit) => ({ x: unit.x / PX, y: unit.y / PX });
+
+// Puts a unit straight onto the map at (x, y), in pixels, on the ground
+// there unless `base` (in pixels) says otherwise. `extra` sets fields.
+export function place(game, kind, owner, x, y, extra = {}) {
+  const px = Math.round(x * PX);
+  const py = Math.round(y * PX);
+  const { base, ...rest } = extra;
+  const unit = addUnit(game.state, {
+    kind, owner, x: px, y: py, base: base === undefined ? sampleTerrain(game.map, px, py).alt : base * PX,
+  });
+  return Object.assign(unit, rest);
+}
+
+// Lets the game run until the waiting turn changes hands, and returns
+// the events on the way.
+export function settleEvents(game) {
+  const before = game.events.length;
+  settle(game);
+  return game.events.slice(before);
+}
+
+// The landing point, in pixels, of a launch from `launcher` with no
+// obstacles in the way.
+export function landingPx(game, launcher, heading, power) {
+  const p = landingOf(game, launcher, heading, power);
+  return { x: p.x / PX, y: p.y / PX };
+}

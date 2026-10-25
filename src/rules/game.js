@@ -15,7 +15,7 @@
 
 import {
   POWER_MAX, START_ENERGY, MIN_TO_PLAY, TIMEOUT_COST, CLOCK_GRACE, CLOCK_SHRINK, CLOCK_MIN,
-  NO_LAUNCHER_LIMIT, PX, PONTOON_FALL_DELAY,
+  NO_LAUNCHER_LIMIT, PX, PONTOON_FALL_DELAY, EXTRACTOR_BLAST, CHARGE_BLAST, CHARGE_TRIGGER,
 } from './constants.js';
 import { divRound } from './math/fixed.js';
 import { loadMap } from './terrain/map.js';
@@ -31,7 +31,11 @@ import { payIncome, payCitadelBonus } from './energy.js';
 import {
   createConduit, fallNodes, breakReason, burn, advanceBurns, conduitsBusy, conduitWarning, isGone,
 } from './conduits.js';
-import { stepShots } from './shots.js';
+import { stepShots, shotFields, failBuilding } from './shots.js';
+import { domesAround } from './barriers.js';
+import { fireInterceptors, stepMissiles } from './interceptors.js';
+import { runPending, scheduleBlast, armedChargeNear, setOff } from './combat.js';
+import { wormsWearOff } from './worm.js';
 
 const MAX_SETTLE_TICKS = 30 * 600;
 
@@ -62,6 +66,8 @@ export function createGame(setup) {
     units: [],
     conduits: [],
     shots: [],
+    missiles: [], // Interceptor missiles in flight (interceptors.js)
+    pending: [], // effects that wait: blasts, Pulses, Surges, Salvagers (combat.js)
     nextId: 1,
     result: null, // when the game is over: { winner }, a side or null
   };
@@ -130,7 +136,7 @@ function refuse(reason) {
 }
 
 function emit(game, event) {
-  game.events.push({ ...event, round: game.state.round, turn: game.state.turnCount });
+  game.events.push({ ...event, round: game.state.round, turn: game.state.turnCount, tick: game.state.tick });
 }
 
 function passTurn(game) {
@@ -173,8 +179,11 @@ function launchMove(game, move) {
     windFromStart: !building,
   });
   const shot = {
-    id: s.nextId++, item: move.item, owner: player, launcher: launcher.id, heading: move.heading,
-    peakTick: null, conduit: null, ...flight,
+    ...shotFields(game, {
+      item: move.item, owner: player, launcher: launcher.id, heading: move.heading,
+      startedIn: domesAround(game, game.sides[player], flight.x, flight.y, flight.z),
+    }),
+    ...flight,
   };
   s.shots.push(shot);
   if (building) shot.conduit = createConduit(s, { owner: player, launcher, shot }).id;
@@ -185,36 +194,50 @@ function launchMove(game, move) {
 }
 
 // One tick of play. Does nothing unless something is in motion. Within
-// a tick: shots move and settle, then conduit nodes fall and settle,
-// then burns move on (spec 01, The flight: every client uses the same
-// order). The turn passes once everything has settled (spec 06, The
-// turn waits).
+// a tick, in this order (spec 01, The flight: every client uses the same
+// order; decision D32):
+//   1. shots move, and end where they meet something or land;
+//   2. Interceptors fire at shots that have come into range;
+//   3. missiles move, and catch what they reach;
+//   4. conduit nodes fall and settle;
+//   5. burns move on;
+//   6. waiting effects whose time has come go off;
+//   7. buildings that burning conduits have reached are destroyed.
+// The turn passes once everything has settled (spec 06, The turn
+// waits).
 export function step(game) {
   const s = game.state;
   if (s.phase !== 'flight') return;
   s.tick += 1;
   const ctx = context(game);
   stepShots(ctx);
+  fireInterceptors(ctx);
+  stepMissiles(ctx, (missile) => caught(ctx, missile));
 
   for (const [conduit, index, groundType] of fallNodes(s, ctx.terrain)) {
     const node = conduit.nodes[index];
     if (isGone(s, node)) continue;
-    const reason = breakReason(s, conduit, node, groundType, game.map.size);
+    // A node near an armed Charge breaks the conduit, and sets it off.
+    const charge = armedChargeNear(game, node.x, node.y, node.z, CHARGE_TRIGGER);
+    if (charge) setOff(ctx, charge, creditNow(game));
+    const reason = charge ? 'charge' : breakReason(s, conduit, node, groundType, game.map.size);
     emit(game, { type: 'nodeSettled', conduit: conduit.id, index, broke: reason });
     if (reason) burn(conduit, index, s.tick, 'break', creditNow(game));
   }
 
   const doomed = advanceBurns(s, (conduit, index) => emit(game, { type: 'nodeBurnt', conduit: conduit.id, index }));
-  for (const [unitId, credit] of doomed) {
+  runPending(ctx);
+  for (const [unitId, credit, fails] of doomed) {
     const unit = findUnit(s, unitId);
-    if (unit) destroyUnit(game, unit, credit);
+    if (unit) destroyUnit(game, unit, credit, fails ? 'failed' : 'destroyed');
   }
 
-  if (s.shots.length === 0 && !conduitsBusy(s)) changeTurn(game);
+  const busy = s.shots.length > 0 || s.missiles.length > 0 || s.pending.length > 0 || conduitsBusy(s);
+  if (!busy) changeTurn(game);
 }
 
 // What the parts of a tick share: the terrain as it stands, with any
-// Pontoons on it.
+// Pontoons on it, and the ways to report and destroy things.
 function context(game) {
   const tops = pontoonTops(game);
   const terrain = (x, y) => sampleTerrain(game.map, x, y, tops);
@@ -223,7 +246,25 @@ function context(game) {
     terrain,
     env: { size: game.map.size, altitude: (x, y) => terrain(x, y).alt },
     emit: (event) => emit(game, event),
+    credit: () => creditNow(game),
+    destroy: (unit, credit, how) => destroyUnit(game, unit, credit, how),
   };
+}
+
+// A missile reached what it chased. A shot is destroyed where it is and
+// does nothing; a unit that was still landing is destroyed, its landing
+// failed (spec 06, The chase, When the chase fails).
+function caught(ctx, missile) {
+  const s = ctx.game.state;
+  const shot = s.shots.find((sh) => sh.id === missile.shot);
+  if (shot) {
+    s.shots.splice(s.shots.indexOf(shot), 1);
+    ctx.emit({ type: 'caught', shot: shot.id, item: shot.item, x: shot.x, y: shot.y, z: shot.z });
+    if (ITEMS[shot.item].category === BUILDING) failBuilding(ctx, shot, 'caught');
+    return;
+  }
+  const unit = missile.unit !== null ? findUnit(s, missile.unit) : null;
+  if (unit) destroyUnit(ctx.game, unit, creditNow(ctx.game), 'failed');
 }
 
 // Each Pontoon's tile, and the altitude of its top.
@@ -263,6 +304,7 @@ function nextSeatInRound(s, from) {
 
 function walk(game, seat) {
   walkTo(game.state, seat, (steps) => {
+    wormsWearOff(game, steps, (event) => emit(game, event));
     for (const u of game.state.units) {
       if (u.disabledUntil === steps) emit(game, { type: 'recover', unit: u.id });
     }
@@ -273,6 +315,15 @@ function walk(game, seat) {
 function changeTurn(game) {
   const s = game.state;
   s.phase = 'turn';
+  // Everything has settled: new Barriers come up (decision D12), and
+  // new Charges are armed (spec 04, Proximity Charges).
+  for (const u of s.units) {
+    if (u.kind === 'barrier' && !u.up) {
+      u.up = true;
+      emit(game, { type: 'barrierUp', unit: u.id });
+    }
+    if (u.kind === 'charge') u.armed = true;
+  }
   if (checkGameOver(game)) return;
   updateInRound(s);
   const seat = nextSeatInRound(s, s.turn.seat);
@@ -366,7 +417,11 @@ function checkGameOver(game) {
 }
 
 // Removes a unit. `credited` is the player who gets the credit for it,
-// or null (spec 06, Explosions and damage).
+// or null (spec 06, Explosions and damage). `how` is 'destroyed',
+// 'failed' (its landing failed), 'salvaged' or 'sunk'.
+// - An Extractor or a Charge that is destroyed while working explodes
+//   a moment later (spec 04, When a unit is destroyed). One whose
+//   landing failed, or that was salvaged or sank, doesn't.
 // - A building's conduits burn: the one leading into it back toward its
 //   launcher, which isn't harmed; each one leading out of it toward the
 //   building at its far end, which goes when the burn reaches it
@@ -374,11 +429,16 @@ function checkGameOver(game) {
 // - Destroying a Citadel puts its owner out of the game, and may pay
 //   the Citadel bonus (spec 03).
 // - A destroyed Pontoon's tile is water again (spec 02, Pontoons).
-// Explosions of units that blast when destroyed come in M4.
-export function destroyUnit(game, unit, credited) {
+export function destroyUnit(game, unit, credited, how = 'destroyed') {
   const s = game.state;
+  const failed = how !== 'destroyed' || unit.landing;
+  const working = isWorking(s, unit);
   s.units.splice(s.units.indexOf(unit), 1);
-  emit(game, { type: 'destroy', unit: unit.id, kind: unit.kind });
+  emit(game, { type: 'destroy', unit: unit.id, kind: unit.kind, how: failed && how === 'destroyed' ? 'failed' : how });
+  if (!failed && working) {
+    if (unit.kind === 'extractor') scheduleBlast(s, unit, EXTRACTOR_BLAST, credited);
+    if (unit.kind === 'charge' && !unit.triggered) scheduleBlast(s, unit, CHARGE_BLAST, credited);
+  }
   for (const conduit of s.conduits) {
     if (conduit.to === unit.id) burn(conduit, conduit.nodes.length - 1, s.tick, 'child', credited);
     if (conduit.from === unit.id) burn(conduit, 0, s.tick, 'parent', credited);
@@ -405,13 +465,13 @@ function sinkPontoon(game, pontoon, credited) {
   const tile = tileIndex(game.map, pontoon.x, pontoon.y);
   for (const u of [...s.units]) {
     if (ITEMS[u.kind]?.category === BUILDING && tileIndex(game.map, u.x, u.y) === tile && s.units.includes(u)) {
-      destroyUnit(game, u, credited);
+      destroyUnit(game, u, credited, 'sunk');
     }
   }
   for (const conduit of s.conduits) {
     conduit.nodes.forEach((node, index) => {
       if (node.resting && !isGone(s, node) && tileIndex(game.map, node.x, node.y) === tile) {
-        burn(conduit, index, s.tick + PONTOON_FALL_DELAY, 'break', credited);
+        burn(conduit, index, s.tick + PONTOON_FALL_DELAY, 'sink', credited);
       }
     });
   }
