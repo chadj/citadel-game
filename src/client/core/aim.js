@@ -18,7 +18,7 @@ export const MARK_STEP = 3; // the marks show the heading to about 3°
 // Holding an arrow: after a short wait, it turns faster and faster, up
 // to about 150° a second. It turns once a tick, at the rules' 30 ticks
 // a second, so a hold turns it in coarse steps (decision D22).
-export const HOLD_WAIT_TICKS = 2; // about 60 ms
+export const HOLD_WAIT_TICKS = 1; // about 30 ms
 export const RAMP_TICKS = 27; // about 0.9 s
 export const START_RATE = 15; // degrees a second
 export const MAX_RATE = 150;
