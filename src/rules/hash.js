@@ -26,6 +26,11 @@ function write(value, out, path) {
     out.push('i', String(value === 0 ? 0 : value), ';');
   } else if (typeof value === 'string') {
     out.push('s', String(value.length), ':', value);
+  } else if (value instanceof Uint16Array) {
+    // Fog counts: one 16-bit character per entry, which the hash reads
+    // whole.
+    out.push('u', String(value.length), ':');
+    for (let k = 0; k < value.length; k += 4096) out.push(String.fromCharCode(...value.subarray(k, k + 4096)));
   } else if (Array.isArray(value) || ArrayBuffer.isView(value)) {
     out.push('[');
     for (let k = 0; k < value.length; k++) write(value[k], out, `${path}[${k}]`);

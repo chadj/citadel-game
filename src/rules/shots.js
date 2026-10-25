@@ -34,6 +34,8 @@ import { domeStop } from './barriers.js';
 import { armedChargeNear, setOff } from './combat.js';
 import { chaseLanded } from './interceptors.js';
 import { weaponEnd } from './weapons.js';
+import { landRover, roverExplodesAt } from './rovers.js';
+import { linger } from './fog.js';
 
 // The fields every new shot starts with, besides its flight.
 export function shotFields(game, { item, owner, launcher, heading, startedIn }) {
@@ -76,7 +78,7 @@ function stepOne(ctx, shot) {
 
   const stop = domeStop(game, game.sides[shot.owner], shot.startedIn, p0, end);
   if (stop) {
-    endShot(s, shot);
+    endShot(game, shot);
     ctx.emit({ type: 'domeFlicker', unit: stop.barrier, x: stop.x, y: stop.y, z: stop.z });
     ctx.emit({ type: 'stopped', shot: shot.id, item: shot.item, x: stop.x, y: stop.y, z: stop.z });
     if (isBuilding(shot)) failBuilding(ctx, shot, 'barrier');
@@ -85,20 +87,23 @@ function stepOne(ctx, shot) {
 
   const hit = airHit(game, shot, p0, end);
   if (hit) {
-    endShot(s, shot);
+    endShot(game, shot);
     const { unit, point } = hit;
     ctx.emit({ type: 'hit', shot: shot.id, item: shot.item, unit: unit.id, ...point });
     if (unit.kind === 'skyProbe') ctx.destroy(unit, ctx.credit(), 'destroyed');
     if (isBuilding(shot)) failBuilding(ctx, shot, 'hit');
     else if (ITEMS[shot.item].category === WEAPON) {
       weaponEnd(ctx, shot, 'direct', point, s.units.includes(unit) ? unit : null);
+    } else if (shot.item === 'rover') {
+      // A Rover that hits a unit explodes on the spot (spec 06, Rover).
+      roverExplodesAt(ctx, point, ctx.credit());
     } else ctx.emit({ type: 'lost', shot: shot.id, item: shot.item, ...point });
     return;
   }
 
   const charge = armedChargeNear(game, end.x, end.y, end.z);
   if (charge) {
-    endShot(s, shot);
+    endShot(game, shot);
     ctx.emit({ type: 'chargeHit', shot: shot.id, item: shot.item, unit: charge.id, ...end });
     setOff(ctx, charge, ctx.credit());
     if (isBuilding(shot)) failBuilding(ctx, shot, 'charge');
@@ -106,12 +111,12 @@ function stepOne(ctx, shot) {
   }
 
   if (landing) {
-    endShot(s, shot);
+    endShot(game, shot);
     land(ctx, shot, landing);
     return;
   }
   if (halted) {
-    endShot(s, shot);
+    endShot(game, shot);
     const unit = addUnit(s, { kind: 'skyProbe', owner: shot.owner, x: shot.x, y: shot.y, base: shot.z });
     if (shot.chased !== null) chaseLanded(s, shot, unit);
     ctx.emit({ type: 'built', unit: unit.id, kind: unit.kind, owner: unit.owner });
@@ -120,8 +125,11 @@ function stepOne(ctx, shot) {
 
 const isBuilding = (shot) => ITEMS[shot.item].category === BUILDING;
 
-function endShot(s, shot) {
+// A shot's flight is over. A weapon's view of the fog lingers there.
+export function endShot(game, shot) {
+  const s = game.state;
   s.shots.splice(s.shots.indexOf(shot), 1);
+  if (ITEMS[shot.item].category === WEAPON) linger(game, shot);
 }
 
 // Flight ------------------------------------------------------------------
@@ -317,6 +325,7 @@ function land(ctx, shot, landing) {
   if (isBuilding(shot)) landBuilding(ctx, shot, landing);
   else if (shot.item === 'pontoon') landPontoon(ctx, shot, landing);
   else if (shot.item === 'charges') landCharge(ctx, shot, landing);
+  else if (shot.item === 'rover') landRover(ctx, shot, landing);
   else if (shot.item === 'skyProbe') ctx.emit({ type: 'lost', shot: shot.id, item: shot.item, ...landing });
   else weaponEnd(ctx, shot, wet ? 'water' : 'ground', landing, null);
 }

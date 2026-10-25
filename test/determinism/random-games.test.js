@@ -76,17 +76,22 @@ test('a replay saved as a file plays back the same', () => {
   assert.deepEqual(back.hashes, live.hashes);
 });
 
-test('the games cover rounds, disconnects and the game ending', () => {
+test('the games cover rounds, disconnects, the game ending, and the systems that interact', () => {
   let rounds = 0;
   let disconnects = 0;
   let over = 0;
+  const seen = new Set();
   for (let seed = 1; seed <= 12; seed++) {
     const { game } = randomGame(seed, 2 + (seed % 3));
     rounds += game.state.round - 1;
     disconnects += game.state.players.filter((p) => p.disconnected).length;
     if (game.state.phase === 'over') over++;
+    for (const e of game.events) seen.add(e.type);
   }
   assert.ok(rounds > 20, `only ${rounds} rounds`);
+  for (const type of ['built', 'nodeBurnt', 'blast', 'interceptorFired', 'infected', 'roverDrives', 'stopped']) {
+    assert.ok(seen.has(type), `no ${type} events`);
+  }
   assert.ok(disconnects > 0, 'no disconnects');
   assert.ok(over > 0, 'no game ended');
 });

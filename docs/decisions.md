@@ -561,3 +561,58 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     height" means a height gap of at most 20 px, the same as its reach.
   - **Repair Pod:** a struck unit that isn't damaged doesn't block the
     search for a damaged unit within 30 px.
+
+## D36. Rovers — Ours
+- **Date:** 2026-10-25
+- **Spec:** 04 Rover; 06 Rover; 07; decisions D8, D9, D13
+- **Decision:**
+  - **In flight:** a Rover that hits a unit explodes on the spot: a blast
+    1 s later at the point it hit. Stopped by a dome or a Charge, or
+    caught in the air, it's simply gone. Caught on land, it's destroyed
+    and explodes; underwater, the missile gives up.
+  - **Landing:** it explodes (a blast 1 s later, where it landed) within
+    12 px of any conduit node, or near an armed Charge (which goes off),
+    or within 20 px of the edge of an enemy unit or any Rover (not
+    Pontoons or Sky Probes). On water it sits 10 px below the surface.
+  - **The drive** is a phase of its own at the end of the round, before
+    income. Each working Rover goes in turn, in the order they landed,
+    and the next starts only once everything has settled. It moves
+    300 px over 40 ticks, checked every quarter of a tick's move
+    (about 1.9 px), each position worked out from where this round's
+    drive started, so it keeps exactly to its heading.
+  - **At each position, in spec 07's order:** an enemy unit within 20 px
+    of its edge (the Rover moves there, then explodes after the pause);
+    a unit of its side within 20 px and within 45° ahead (it stops
+    where it was); a conduit node within 12 px (enemy: moves there, then
+    explodes after 0.7 s; its side's: stops where it was); an armed
+    Charge (moves there and sets it off). Whose conduit it is follows
+    the conduit's owner. A driving Rover sets a Charge off when the
+    Charge's blast would reach it, so the blast always destroys it.
+  - **Credit** while Rovers drive goes to the Rover's owner.
+
+## D37. Fog of war in the rules — Ours
+- **Date:** 2026-10-25
+- **Spec:** 08; 12 The game state; decisions D10, D11
+- **Decision:**
+  - **Cells:** 30 px. A cell is revealed by a revealer when the cell's
+    center is within its sight. Counts are kept per side, in the state.
+  - **Sight curves**, on the altitude of the top in pixels: units
+    130 px up to 10, 200 at 20, 250 at 55, 300 at 90, then 1.5 px more
+    per px, up to 480. Sky Probes 200 at 50, rising to 500 at 250.
+    Shots and missiles 130 at 0, rising to 500 at 300. Spires 500;
+    conduit nodes 130.
+  - **The oblique shift:** what's revealed is centered half the
+    revealer's altitude up the screen (toward smaller y). The client
+    draws with the same factor. Conduit nodes aren't shifted.
+  - **Lingering:** where a weapon or tool's flight ends, by any means,
+    its view stays for 30 ticks (1 s) at the shot's sight there. The
+    turn waits for it. With fog off there's nothing to linger.
+  - **When it's worked out:** at every turn's start, which is when the
+    state is compared and when computer players look. Nothing in the
+    rules depends on the fog during a flight, so a screen that shows
+    the flight asks for the counts tick by tick. The state at a turn's
+    start is the same either way.
+  - **Hashing:** fog counts go into the canonical form as one 16-bit
+    character per cell (D27).
+  - **The fog lifts** for a side with no human player who still has a
+    Citadel, unless that side has won.

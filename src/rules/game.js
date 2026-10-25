@@ -15,7 +15,8 @@
 
 import {
   POWER_MAX, START_ENERGY, MIN_TO_PLAY, TIMEOUT_COST, CLOCK_GRACE, CLOCK_SHRINK, CLOCK_MIN,
-  NO_LAUNCHER_LIMIT, PX, PONTOON_FALL_DELAY, EXTRACTOR_BLAST, CHARGE_BLAST, CHARGE_TRIGGER,
+  NO_LAUNCHER_LIMIT, PX, PONTOON_FALL_DELAY, EXTRACTOR_BLAST, CHARGE_BLAST, ROVER_BLAST, CHARGE_TRIGGER,
+  ROVER_UNDERWATER,
 } from './constants.js';
 import { divRound } from './math/fixed.js';
 import { loadMap } from './terrain/map.js';
@@ -31,11 +32,13 @@ import { payIncome, payCitadelBonus } from './energy.js';
 import {
   createConduit, fallNodes, breakReason, burn, advanceBurns, conduitsBusy, conduitWarning, isGone,
 } from './conduits.js';
-import { stepShots, shotFields, failBuilding } from './shots.js';
+import { stepShots, shotFields, failBuilding, endShot } from './shots.js';
+import { createFog, updateFog, dropLingers } from './fog.js';
 import { domesAround } from './barriers.js';
 import { fireInterceptors, stepMissiles } from './interceptors.js';
 import { runPending, scheduleBlast, armedChargeNear, setOff } from './combat.js';
 import { wormsWearOff } from './worm.js';
+import { roversToDrive, nextDrive, stepDrive } from './rovers.js';
 
 const MAX_SETTLE_TICKS = 30 * 600;
 
@@ -68,10 +71,15 @@ export function createGame(setup) {
     shots: [],
     missiles: [], // Interceptor missiles in flight (interceptors.js)
     pending: [], // effects that wait: blasts, Pulses, Surges, Salvagers (combat.js)
+    roverQueue: [], // Rovers still to drive at this round's end (rovers.js)
+    drive: null, // the Rover driving now
+    fog: null, // fog of war counts, with fog on (fog.js)
+    lingers: [], // where weapons' views of the fog linger
     nextId: 1,
     result: null, // when the game is over: { winner }, a side or null
   };
   const game = { setup, map, wind, sides, state, events: [] };
+  state.fog = createFog(game);
 
   // Each player's Citadel, at their start (spec 02, Start positions).
   setup.starts.forEach((start, player) => {
@@ -205,14 +213,19 @@ function launchMove(game, move) {
 //   7. buildings that burning conduits have reached are destroyed.
 // The turn passes once everything has settled (spec 06, The turn
 // waits).
+//
+// At the end of a round, the game is in the 'rovers' phase instead: the
+// Rover whose turn it is to drive moves after the missiles, and the next
+// one starts once everything has settled (spec 07, When Rovers drive).
 export function step(game) {
   const s = game.state;
-  if (s.phase !== 'flight') return;
+  if (s.phase !== 'flight' && s.phase !== 'rovers') return;
   s.tick += 1;
   const ctx = context(game);
   stepShots(ctx);
   fireInterceptors(ctx);
   stepMissiles(ctx, (missile) => caught(ctx, missile));
+  stepDrive(ctx);
 
   for (const [conduit, index, groundType] of fallNodes(s, ctx.terrain)) {
     const node = conduit.nodes[index];
@@ -232,8 +245,13 @@ export function step(game) {
     if (unit) destroyUnit(game, unit, credit, fails ? 'failed' : 'destroyed');
   }
 
-  const busy = s.shots.length > 0 || s.missiles.length > 0 || s.pending.length > 0 || conduitsBusy(s);
-  if (!busy) changeTurn(game);
+  dropLingers(s);
+  if (game.liveFog) updateFog(game);
+  const busy = s.shots.length > 0 || s.missiles.length > 0 || s.pending.length > 0 || conduitsBusy(s)
+    || (s.drive !== null && !s.drive.done) || s.lingers.length > 0;
+  if (busy) return;
+  if (s.phase === 'flight') changeTurn(game);
+  else if (!nextDrive(s)) finishRound(game);
 }
 
 // What the parts of a tick share: the terrain as it stands, with any
@@ -258,13 +276,16 @@ function caught(ctx, missile) {
   const s = ctx.game.state;
   const shot = s.shots.find((sh) => sh.id === missile.shot);
   if (shot) {
-    s.shots.splice(s.shots.indexOf(shot), 1);
+    endShot(ctx.game, shot);
     ctx.emit({ type: 'caught', shot: shot.id, item: shot.item, x: shot.x, y: shot.y, z: shot.z });
     if (ITEMS[shot.item].category === BUILDING) failBuilding(ctx, shot, 'caught');
     return;
   }
   const unit = missile.unit !== null ? findUnit(s, missile.unit) : null;
-  if (unit) destroyUnit(ctx.game, unit, creditNow(ctx.game), 'failed');
+  if (!unit) return;
+  // A Rover on land has landed and is working, so it explodes (spec 06).
+  if (unit.kind === 'rover') unit.landing = false;
+  destroyUnit(ctx.game, unit, creditNow(ctx.game), unit.kind === 'rover' ? 'destroyed' : 'failed');
 }
 
 // Each Pontoon's tile, and the altitude of its top.
@@ -278,7 +299,7 @@ function pontoonTops(game) {
 
 // Runs ticks until the game waits for a move, or is over.
 export function settle(game) {
-  for (let k = 0; game.state.phase === 'flight'; k++) {
+  for (let k = 0; game.state.phase === 'flight' || game.state.phase === 'rovers'; k++) {
     if (k >= MAX_SETTLE_TICKS) throw new Error('the turn never settled');
     step(game);
   }
@@ -337,12 +358,25 @@ function changeTurn(game) {
   beginTurn(game, seat, backToBack ? previous.limit : null);
 }
 
-// The end of a round (spec 03, The end of a round). Rovers drive first
-// (M5); then income is paid; then effects due at the change of round
-// wear off, and the next round starts with the shifted order.
+// The end of a round (spec 03, The end of a round). Rovers drive first,
+// one at a time, in the 'rovers' phase; then income is paid; then
+// effects due at the change of round wear off, and the next round starts
+// with the shifted order.
 function endRound(game) {
   const s = game.state;
   emit(game, { type: 'roundOver' });
+  s.roverQueue = roversToDrive(s);
+  if (nextDrive(s)) {
+    s.phase = 'rovers';
+    return;
+  }
+  finishRound(game);
+}
+
+function finishRound(game) {
+  const s = game.state;
+  s.phase = 'turn';
+  s.drive = null;
   payIncome(s);
   emit(game, { type: 'income' });
   s.players.forEach((p) => {
@@ -388,6 +422,7 @@ function beginTurn(game, seat, previousLimit) {
   };
   s.turnCount += 1;
   s.phase = 'turn';
+  updateFog(game);
   emit(game, { type: 'turnStart', player, limit: s.turn.limit, noLauncher });
 }
 
@@ -438,6 +473,7 @@ export function destroyUnit(game, unit, credited, how = 'destroyed') {
   if (!failed && working) {
     if (unit.kind === 'extractor') scheduleBlast(s, unit, EXTRACTOR_BLAST, credited);
     if (unit.kind === 'charge' && !unit.triggered) scheduleBlast(s, unit, CHARGE_BLAST, credited);
+    if (unit.kind === 'rover' && !unit.triggered) scheduleBlast(s, unit, ROVER_BLAST, credited);
   }
   for (const conduit of s.conduits) {
     if (conduit.to === unit.id) burn(conduit, conduit.nodes.length - 1, s.tick, 'child', credited);
@@ -459,10 +495,16 @@ export function destroyUnit(game, unit, credited, how = 'destroyed') {
 // buildings standing on it fall in and are destroyed, without exploding.
 // A moment later, each conduit crossing it falls in, and burns both ways
 // from there (spec 02, Pontoons; spec 05, Conduits across a Pontoon).
-// Rovers on it drop into the water (M5).
+// Rovers on it drop into the water, and carry on underwater.
 function sinkPontoon(game, pontoon, credited) {
   const s = game.state;
   const tile = tileIndex(game.map, pontoon.x, pontoon.y);
+  for (const u of s.units) {
+    if (u.kind === 'rover' && tileIndex(game.map, u.x, u.y) === tile) {
+      u.base = -ROVER_UNDERWATER;
+      emit(game, { type: 'splash', x: u.x, y: u.y, z: 0, unit: u.id });
+    }
+  }
   for (const u of [...s.units]) {
     if (ITEMS[u.kind]?.category === BUILDING && tileIndex(game.map, u.x, u.y) === tile && s.units.includes(u)) {
       destroyUnit(game, u, credited, 'sunk');
@@ -479,5 +521,8 @@ function sinkPontoon(game, pontoon, credited) {
 
 // The player whose turn it is gets the credit for what happens in it.
 export function creditNow(game) {
+  // While Rovers drive at the end of a round, it's nobody's turn: the
+  // Rover's owner gets the credit (spec 07, When it explodes).
+  if (game.state.phase === 'rovers') return game.state.drive?.owner ?? null;
   return game.state.turn?.player ?? null;
 }

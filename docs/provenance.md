@@ -112,3 +112,16 @@ entries in `decisions.md` it relies on.
   Interceptors, Charges), Conduits that break (Charges); 03 Turn cycles;
   Appendix A 04 and 06.
 - **Decisions:** D2, D3, D7, D12, D14, D15, D17, D32, D33, D34, D35.
+
+## Rovers
+- **Files:** `src/rules/rovers.js`, `src/rules/shots.js` (in flight,
+  landing), `src/rules/game.js` (the 'rovers' phase, credit, Pontoons)
+- **Spec:** 07 (all of it); 04 Rover; 06 Rover, Blasts; 02 Pontoons (a
+  Rover on one); 03 The end of a round (Rovers first); Appendix A 07.
+- **Decisions:** D8, D9, D13, D36.
+
+## Fog of war
+- **Files:** `src/rules/fog.js`, `src/rules/hash.js` (packing the counts)
+- **Spec:** 08 (all but how it's drawn); 12 The game state; Appendix A
+  08.
+- **Decisions:** D10, D11, D17, D37.

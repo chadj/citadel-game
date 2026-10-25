@@ -177,4 +177,38 @@ export const PROBE_DIP_TICKS = 8;
 export const PROBE_DIP = px(6);
 export const PROBE_RISE = px(33); // it ends a bit above the top of its arc
 
+// Rovers (spec 04 Rover; spec 06 Rover; spec 07; decisions D9, D13,
+// D36).
+export const ROVER_LAND_NODE = px(12); // it explodes landing this near a conduit node
+export const ROVER_REACH = px(20); // from another unit's edge
+export const ROVER_UNDERWATER = px(10); // below the surface
+export const ROVER_DRIVE = px(300); // a round's drive
+export const ROVER_DRIVE_TICKS = 40; // about 1.3 s
+export const ROVER_SUBSTEPS = 4; // checks per tick, so it stops close to where it first comes in reach
+export const ROVER_NODE_REACH = px(12);
+export const ROVER_UNIT_PAUSE = 30; // about 1 s before it explodes at an enemy unit
+export const ROVER_CONDUIT_PAUSE = 21; // about 0.7 s at an enemy conduit
+
+// Fog of war (spec 08; decisions D10, D11, D17, D37). Sight is in
+// position units.
+export const FOG_CELL = px(30);
+export const NODE_SIGHT = px(130);
+export const SPIRE_SIGHT = px(500);
+export const SIGHT_MAX = px(500);
+export const GROUND_SIGHT_MAX = px(480); // nothing on the ground but a Spire sees further
+// The unit curve: [altitude of its top, sight], in pixels, joined by
+// straight lines, and rising 1.5 px per px above the last point.
+export const UNIT_SIGHT_CURVE = Object.freeze([[10, 130], [20, 200], [55, 250], [90, 300]]);
+// Sky Probes: 200 px at a top of 50, rising to 500 at the 250 of a
+// full-power float.
+export const PROBE_SIGHT_CURVE = Object.freeze([[50, 200], [250, 500]]);
+// Shots and missiles: 130 px at the ground, rising to 500 at about 300,
+// the top of a high Battery shot.
+export const SHOT_SIGHT_CURVE = Object.freeze([[0, 130], [300, 500]]);
+export const LINGER_TICKS = 30; // a weapon's view stays about 1 s after it lands
+// The oblique view: what's revealed is centered this share of the
+// revealer's altitude up the screen, which is toward smaller y. The
+// screen uses the same value.
+export const OBLIQUE = ONE / 2;
+
 export { PX, VEL, ONE };
