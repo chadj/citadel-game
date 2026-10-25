@@ -192,3 +192,16 @@ entries in `decisions.md` it relies on.
 - **Spec:** 11 (all of it); 10 Options and the game menu (the volume
   sliders).
 - **Decisions:** D49, D50, D51.
+- **Known gaps** (to come back to):
+  - **Not yet listened to.** It has been checked in a headless browser
+    (sounds start, follow and stop; songs change) but not by ear. The
+    recipes, the levels and the music's layers need a listening pass.
+  - **The aide's voices** depend on the voices the player's system has;
+    with only one English voice, the factions differ by pitch and speed
+    only. Recordings (D50) would fix this.
+  - **Chat** sounds when a message is sent; online play should sound it
+    when one arrives, for the players who get it.
+  - **Not responding / disconnected** lines are in the aide but nothing
+    sends those events until online play does.
+  - **The game menu's sliders** change the volume at once but play no
+    sample on release (the spec asks this of the Options screen only).

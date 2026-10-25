@@ -61,7 +61,11 @@ export class SummaryScene extends BaseScene {
     const winner = over ? over.winner : null;
     const humans = setup.players.map((p, i) => i).filter((i) => !setup.players[i].computer);
     const lost = !watched && humans.every((i) => winner === null || sides[i] !== winner);
-    this.audio?.music.play(lost ? 'defeat' : 'victory', { then: 'menu' });
+    const music = this.audio?.music;
+    if (!music) return;
+    // The game's music fades into the ending.
+    if (music.song === 'game') music.fadeOut(800, lost ? 'defeat' : 'victory');
+    else music.play(lost ? 'defeat' : 'victory', { then: 'menu' });
   }
 
   save() {
