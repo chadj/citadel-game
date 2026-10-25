@@ -28,7 +28,7 @@ import { sampleTerrain, tileIndex, tileCenter } from '../../rules/terrain/terrai
 import { LIFT, screenCopies } from '../core/view.js';
 import { markHeading, moveHeading } from '../core/aim.js';
 import { terrainPixels } from './terrain-art.js';
-import { fogPixels } from './fog-art.js';
+import { fogPixels, FOG_SUB } from './fog-art.js';
 import { Effects } from './effects.js';
 import { PLAYER_COLORS, shade } from './palette.js';
 
@@ -92,13 +92,13 @@ export class WorldView {
     const fog = this.game.state.fog;
     this.fogImages = [];
     if (!fog) return;
-    const w = fog.cells + 2;
+    const w = (fog.cells + 2) * FOG_SUB;
     if (scene.textures.exists('fog')) scene.textures.remove('fog');
     this.fogTex = scene.textures.createCanvas('fog', w, w);
     this.fogData = this.fogTex.getContext().createImageData(w, w);
     for (let k = 0; k < 9; k++) {
-      const img = scene.add.image(0, 0, 'fog').setOrigin(0, 0).setDepth(DEPTH.fog).setScale(FOG_CELL / PX);
-      img.setCrop(1, 1, fog.cells, fog.cells);
+      const img = scene.add.image(0, 0, 'fog').setOrigin(0, 0).setDepth(DEPTH.fog).setScale(FOG_CELL / PX / FOG_SUB);
+      img.setCrop(FOG_SUB, FOG_SUB, fog.cells * FOG_SUB, fog.cells * FOG_SUB);
       this.fogImages.push(img);
     }
   }

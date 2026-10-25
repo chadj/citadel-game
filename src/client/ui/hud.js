@@ -17,6 +17,7 @@ import { ENERGY_CAP, PX, FOG_CELL } from '../../rules/constants.js';
 import { isWorking, UNIT_KINDS, isLauncher } from '../../rules/units.js';
 import { canSee } from '../../rules/fog.js';
 import { LIFT } from '../core/view.js';
+import { FOG_SUB } from '../render/fog-art.js';
 
 const DEPTH = 20;
 
@@ -60,7 +61,8 @@ export class Hud {
     if (scene.textures.exists('fog') && scene.session.state.fog) {
       for (let k = 0; k < 4; k++) {
         const img = scene.add.image(0, 0, 'fog').setOrigin(0, 0);
-        img.setCrop(1, 1, scene.session.state.fog.cells, scene.session.state.fog.cells);
+        const n = scene.session.state.fog.cells * FOG_SUB;
+        img.setCrop(FOG_SUB, FOG_SUB, n, n);
         add(this.miniFog[k] = img);
       }
     }
@@ -164,7 +166,7 @@ export class Hud {
     const tex = this.scene.textures.get('minimap-terrain').getSourceImage();
     for (const img of this.miniTerrain) img.setScale(miniSize / tex.width);
     const fog = this.scene.session.state.fog;
-    if (fog) for (const img of this.miniFog) img.setScale(miniSize / fog.cells);
+    if (fog) for (const img of this.miniFog) img.setScale(miniSize / (fog.cells * FOG_SUB));
     this.chase.setSize(78, 26).setPosition(this.mini.x - 84, this.mini.y + (narrow ? 0 : miniSize - 58));
     this.watch.setSize(78, 26).setPosition(this.mini.x - 84, this.mini.y + (narrow ? 30 : miniSize - 28));
     this.windText.setPosition(this.mini.x, this.mini.y + miniSize + 4);
