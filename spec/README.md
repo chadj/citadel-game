@@ -38,19 +38,19 @@ implement it.
 
 | # | Chapter | Status |
 |---|---|---|
-| 00 | [The game at a glance](00-overview.md) | Draft for review |
-| 01 | [Launching and flight](01-launch.md) | Draft for review |
-| 02 | [The map and terrain](02-map.md) | Draft for review |
-| 03 | [Turns, rounds and energy](03-turns.md) | Draft for review |
-| 04 | [Units](04-units.md) | Draft for review |
-| 05 | [Buildings and conduits](05-buildings.md) | Draft for review |
-| 06 | [Weapons and tools](06-weapons.md) | Draft for review |
-| 07 | [Rovers](07-rovers.md) | Draft for review |
-| 08 | [Fog of war](08-fog.md) | Draft for review |
-| 09 | [Computer players](09-computers.md) | Draft for review |
-| 10 | [Screen and controls](10-screen.md) | Draft for review |
-| 11 | [Sound and music](11-sound.md) | Draft for review |
-| 12 | [Online play and replays](12-online.md) | Draft for review |
-| A | [Example scenarios](appendix-a-example-scenarios.md) | Draft for review |
+| 00 | [The game at a glance](00-overview.md) | Reviewed |
+| 01 | [Launching and flight](01-launch.md) | Reviewed |
+| 02 | [The map and terrain](02-map.md) | Reviewed |
+| 03 | [Turns, rounds and energy](03-turns.md) | Reviewed |
+| 04 | [Units](04-units.md) | Reviewed |
+| 05 | [Buildings and conduits](05-buildings.md) | Reviewed |
+| 06 | [Weapons and tools](06-weapons.md) | Reviewed |
+| 07 | [Rovers](07-rovers.md) | Reviewed |
+| 08 | [Fog of war](08-fog.md) | Reviewed |
+| 09 | [Computer players](09-computers.md) | Reviewed |
+| 10 | [Screen and controls](10-screen.md) | Reviewed |
+| 11 | [Sound and music](11-sound.md) | Reviewed |
+| 12 | [Online play and replays](12-online.md) | Reviewed |
+| A | [Example scenarios](appendix-a-example-scenarios.md) | Reviewed |
 
 Chapter 00 lists all the planned chapters.
