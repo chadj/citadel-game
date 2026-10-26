@@ -49,8 +49,25 @@ negotiable.
 - Phaser handles drawing, input, camera, UI and audio.
 - Appendix A's scenarios become automated tests.
 
+## Layout
+- `src/rules`: the game rules (plain JS, no Phaser or DOM; checked by
+  `tools/purity.js`). `src/mapgen`: the map generator, also plain.
+- `src/ai`: computer players (plain JS; on the server online).
+- `src/client`: the browser game (`core` is plain and tested in Node;
+  `scenes`, `ui`, `render`, `audio` use Phaser or the browser).
+- `src/server`, `src/net`: the online lobby and lockstep games.
+- `src/maps`: the maps. `generated.js` is written by
+  `node tools/make-maps.js`; don't edit it by hand.
+
 ## Conventions
 - Tests: `npm test` (Node's built-in runner).
+- Run: `npm start` serves the game and the online server at
+  http://localhost:8080. The server runs the rules and the computer
+  players, so restart it after changing `src/rules`, `src/ai` or
+  `src/server`.
+- Rules changes that alter play raise `RULES_VERSION`
+  (`src/rules/version.js`), since replays record it.
+- Commit straight to `main`; no feature branches.
 - License: AGPL-3.0-or-later (`LICENSE`), chosen for now; the user may
   change it later. Every source file carries the header:
   ```js

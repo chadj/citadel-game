@@ -230,7 +230,8 @@ entries in `decisions.md` it relies on.
   different machines, is checked live by the server's hash compare);
   03 Players who disconnect; 10 Chat, Quit; 11 the aide's news of
   players not responding.
-- **Decisions:** D52, D56 (numbered repeat names; a duplicated tab starts afresh).
+- **Decisions:** D52, D56 (numbered repeat names; a duplicated tab starts
+  afresh; a tab in the background misses no moves).
 - **Known gaps** (to come back to):
   - **Rejoining after a disconnect** isn't offered (the spec makes
     rejoining optional).
