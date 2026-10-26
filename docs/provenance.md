@@ -169,7 +169,8 @@ entries in `decisions.md` it relies on.
 - **Files:** `src/ai/personalities.js`, `src/ai/belief.js`,
   `src/ai/aim.js`, `src/ai/value.js`, `src/ai/candidates.js`,
   `src/ai/land.js`, `src/ai/brain.js`; `src/client/core/computers.js`,
-  `src/client/core/session.js` (thinking in slices).
+  `src/client/core/session.js` (thinking in slices); `tools/ai-match.js`
+  (computer against computer, for checking).
 - **Spec:** 09 (all of it); 12 Computer players (the personality
   choice); 01 (the flight model it aims with).
 - **Decisions:** D43, D44, D45, D48 (crossing water), D55 (a Pontoon aimed
@@ -206,13 +207,11 @@ entries in `decisions.md` it relies on.
   - **Not yet listened to.** It has been checked in a headless browser
     (sounds start, follow and stop; songs change) but not by ear. The
     recipes, the levels and the music's layers need a listening pass.
-  - **The aide's voices** depend on the voices the player's system has;
-    with only one English voice, the factions differ by pitch and speed
-    only. Recordings (D50) would fix this.
-  - **Chat** sounds when a message is sent; online play should sound it
-    when one arrives, for the players who get it.
-  - **Not responding / disconnected** lines are in the aide but nothing
-    sends those events until online play does.
+  - **The aide's voices** depend on the voices the player's system has.
+    They're chosen by name on macOS, iOS, Chrome and Windows; Android's
+    voice names say nothing of who speaks, so there the choice is
+    rough. The user wants another pass on the voices. Recordings (D50)
+    would settle it.
   - **The game menu's sliders** change the volume at once but play no
     sample on release (the spec asks this of the Options screen only).
 
@@ -223,7 +222,8 @@ entries in `decisions.md` it relies on.
   `src/client/scenes/lobby.js`, the online parts of
   `src/client/scenes/setup.js` and `src/client/scenes/game.js`;
   `setupProblem` in `src/client/core/newgame.js` (shared by the setup
-  screen and the server).
+  screen and the server); `tools/online-check.js` (two tabs playing,
+  for checking).
 - **Spec:** 12 Ways to play, The lobby, Setting up a game, When the
   game starts, Every machine plays the same game, Dropping out,
   Rejoining (before a disconnect), Determinism checks 1, 3, 5 (2, on

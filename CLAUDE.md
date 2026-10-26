@@ -15,6 +15,10 @@ opponents. Built with Phaser 4 and JavaScript ES modules.
   Record each answer in `docs/decisions.md`, and add any proposed spec
   wording to `docs/spec-changes.md` for the user to apply.
 
+## Where the work stands
+`docs/status.md`: what's done, what's next, open questions, and how
+to check work by hand. Keep it current as work finishes.
+
 ## Clean-room rules
 This project must be provably independent. These rules are not
 negotiable.
