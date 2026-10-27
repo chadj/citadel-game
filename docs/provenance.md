@@ -175,7 +175,9 @@ entries in `decisions.md` it relies on.
   choice); 01 (the flight model it aims with).
 - **Decisions:** D43, D44, D45, D48 (crossing water), D55 (a Pontoon aimed
   at a wet point of a tile that is only partly water), D58 (bridging
-  only water that's in the way).
+  only water that's in the way), D59 (watching every turn, and
+  answering attacks; `src/server/net-game.js` and the session let
+  computers watch each tick of a flight).
 - **Known gaps** (spec 09 not yet covered):
   - **Planning ahead:** apart from crossing water (D48), it looks one
     move ahead; it doesn't plan a chain of Outposts toward a goal, or

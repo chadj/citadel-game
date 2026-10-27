@@ -447,6 +447,9 @@ function checkGameOver(game) {
   else return false;
   s.phase = 'over';
   s.result = { winner };
+  // The fog as at a turn's start, so the final state is the same on
+  // every machine, whether it kept the fog up during the flight or not.
+  updateFog(game);
   emit(game, { type: 'gameOver', winner });
   return true;
 }

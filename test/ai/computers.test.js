@@ -2,14 +2,15 @@
 // Copyright (C) 2026 Chad Johnson
 
 // Computer players (spec 09): fair play, personalities, getting its eye
-// in, making a shot, and whole games between computers.
+// in, making a shot, being under attack, and whole games between
+// computers.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createGame, applyMove, settle } from '../../src/rules/game.js';
+import { createGame, applyMove, settle, step } from '../../src/rules/game.js';
 import { updateFog } from '../../src/rules/fog.js';
-import { citadelOf } from '../../src/rules/units.js';
+import { citadelOf, UNIT_KINDS } from '../../src/rules/units.js';
 import { hashState } from '../../src/rules/hash.js';
 import { MIN_TO_PLAY, PX } from '../../src/rules/constants.js';
 import { listJsFiles } from '../../tools/walk.js';
@@ -21,7 +22,8 @@ import { PERSONALITIES as OFFERED, mapStarts, brainsFor } from '../../src/client
 import { MAPS, mapData } from '../../src/client/core/maps.js';
 import { Session, COMPUTER_MIN_MS } from '../../src/client/core/session.js';
 import { makeSetup, makeGame, whoseTurn } from '../helpers/setups.js';
-import { place, launchAt, builtUnit, richPlayers } from '../helpers/build.js';
+import { place, launchAt, builtUnit, richPlayers, aimAt } from '../helpers/build.js';
+import { planFor, unitWorth, evaluate } from '../../src/ai/value.js';
 
 const brain = (personality, player, seed = 1, starts = []) => new Brain(personality, player, { starts, random: seeded(seed) });
 
@@ -212,4 +214,154 @@ test('a Pontoon counts as often as its aim would land it: narrow water is a poor
   const [c, l] = [drifter.landChance(game, channel), drifter.landChance(game, lake)];
   assert.ok(c < l, `channel ${c}, lake ${l}`);
   assert.ok(c < 0.5 && l > 0.5, `channel ${c}, lake ${l}`);
+});
+
+// Player 0's Battery, hidden in the fog 600 px south of player 1's
+// Citadel, shells it; the computer watches the flight tick by tick, as
+// the game does (decision D59).
+function shelledFromTheFog(b, item = 'shell') {
+  const game = makeGame({ players: [{}, { computer: true }] });
+  const battery = place(game, 'battery', 0, 1300, 900);
+  updateFog(game);
+  b.observe(game);
+  const citadel = citadelOf(game.state, 1);
+  const { heading, power } = aimAt(game, battery, citadel.x / PX, citadel.y / PX);
+  assert.ok(applyMove(game, { type: 'launch', player: 0, launcher: battery.id, item, heading, power }).ok);
+  while (game.state.phase === 'flight') {
+    step(game);
+    b.watch(game);
+  }
+  b.observe(game);
+  return { game, battery, citadel };
+}
+
+const far = (game, a, b) => Math.hypot(a.x - b.x, a.y - b.y) / PX;
+
+test('hit from the fog: it traces the shot back, and its Citadel is under attack', () => {
+  const b = brain('warden', 1);
+  const { game, battery, citadel } = shelledFromTheFog(b);
+  assert.ok(citadel.armor < UNIT_KINDS.outpost.armor, 'the shell hit');
+  const lead = b.memory.leads.find((l) => l.kind === 'shooter');
+  assert.ok(lead && far(game, lead, battery) < 150, `traced to ${lead && [lead.x / PX, lead.y / PX]}`);
+  assert.equal(b.memory.attacked(game.state).get(citadel.id), 1);
+  // The Battery stays hidden; an Outpost stands in for it, guessed.
+  const units = b.memory.belief(game).state.units;
+  assert.ok(!units.some((u) => u.id === battery.id));
+  const guess = units.find((u) => u.id < 0);
+  assert.ok(guess && guess.kind === 'outpost' && guess.owner === 0 && guess.guess < 1);
+});
+
+test('it guesses where a shot came from as a person would: roughly, and the easier computers less closely', () => {
+  const median = (who) => {
+    const offs = Array.from({ length: 15 }, (_, k) => {
+      const b = brain(who, 1, k + 1);
+      const { game, battery } = shelledFromTheFog(b);
+      const lead = b.memory.leads.find((l) => l.kind === 'shooter');
+      return lead ? far(game, lead, battery) : Infinity;
+    }).sort((a, b) => a - b);
+    return offs[7];
+  };
+  const [hardest, easiest] = [median('warden'), median('drifter')];
+  assert.ok(hardest > 20, `the hardest is ${hardest} px off: too exact`);
+  assert.ok(easiest > hardest && easiest < 200, `${hardest} px, ${easiest} px`);
+});
+
+test('shots from the same place sharpen its guess', () => {
+  const b = brain('warden', 1, 2);
+  const { game, battery, citadel } = shelledFromTheFog(b);
+  const first = far(game, b.memory.leads.find((l) => l.kind === 'shooter'), battery);
+  for (let k = 0; k < 5; k++) {
+    Object.assign(game.state, { phase: 'turn' });
+    game.state.turn.player = 0;
+    // Beside the Citadel, in its sight, so the game goes on.
+    const { heading, power } = aimAt(game, battery, citadel.x / PX + (k % 2 ? 150 : -150), citadel.y / PX + 60);
+    assert.ok(applyMove(game, { type: 'launch', player: 0, launcher: battery.id, item: 'shell', heading, power }).ok);
+    while (game.state.phase === 'flight') {
+      step(game);
+      b.watch(game);
+    }
+    b.observe(game);
+  }
+  const leads = b.memory.leads.filter((l) => l.kind === 'shooter');
+  assert.equal(leads.length, 1, 'one launcher');
+  assert.equal(game.state.phase, 'turn');
+  assert.equal(leads[0].seen, 6);
+  assert.ok(far(game, leads[0], battery) < first, `${first} px, then ${far(game, leads[0], battery)} px`);
+});
+
+test('with its Citadel hit from the fog, the harder computers defend it before anything else', () => {
+  for (const [who, seed] of [['warden', 4], ['forge', 1], ['sentry', 1]]) {
+    const b = brain(who, 1, seed);
+    const { game, citadel } = shelledFromTheFog(b);
+    const move = b.think(game, 1);
+    assert.ok(['interceptor', 'charges', 'barrier'].includes(move.item), `${who} launched ${move.item}`);
+    assert.equal(move.launcher, citadel.id);
+  }
+});
+
+test('without watching the flight, the old way, it still knows it was hit', () => {
+  const b = brain('warden', 1, 4);
+  const { game, citadel } = shelledFromTheFog({ observe: (g) => b.observe(g), watch() {} });
+  assert.equal(b.memory.leads.length, 0);
+  assert.ok(b.memory.attacked(game.state).has(citadel.id));
+});
+
+test('an attack keeps a building on alert for three turn cycles, then wears off', () => {
+  const b = brain('warden', 1);
+  const { game, citadel } = shelledFromTheFog(b);
+  const seats = game.state.seats.length;
+  game.state.cycle.steps += 3 * seats;
+  assert.ok(b.memory.attacked(game.state).has(citadel.id), 'still on alert');
+  game.state.cycle.steps += 1;
+  assert.ok(!b.memory.attacked(game.state).has(citadel.id), 'worn off');
+});
+
+test('its own Citadel counts for as much however hurt it is', () => {
+  const game = makeGame({ players: [{}, { computer: true }] });
+  const b = brain('warden', 1);
+  b.observe(game);
+  const plan = planFor(game, 1, b.personality, b.weights, b.memory);
+  const citadel = citadelOf(game.state, 1);
+  const whole = unitWorth(plan, citadel, true);
+  assert.equal(unitWorth(plan, { ...citadel, armor: 10 }, true), whole);
+});
+
+test('the sign of damage on an enemy unit in the fog is a lead, but shows nothing else', () => {
+  const game = makeGame({ players: [{}, { computer: true }] });
+  const hidden = place(game, 'outpost', 0, 1300, 1000, { armor: 20 });
+  updateFog(game);
+  const b = brain('warden', 1);
+  b.observe(game);
+  const lead = b.memory.leads.find((l) => l.kind === 'sign');
+  assert.ok(lead && far(game, lead, hidden) < 1);
+  assert.ok(!b.memory.belief(game).state.units.some((u) => u.id === hidden.id || u.id < 0));
+});
+
+// Player 1's Citadel, with player 0's Outpost 400 px south of it, in
+// reach; and Charges of player 1's at the given points, in pixels.
+function chargesBy(points) {
+  const game = makeGame({ players: [{}, { computer: true }], fog: false });
+  const citadel = citadelOf(game.state, 1);
+  const [cx, cy] = [citadel.x / PX, citadel.y / PX];
+  place(game, 'outpost', 0, cx, cy + 400);
+  for (const [dx, dy] of points) place(game, 'charge', 1, cx + dx, cy + dy);
+  const b = brain('warden', 1);
+  b.observe(game);
+  return evaluate(game, planFor(game, 1, b.personality, b.weights, b.memory));
+}
+
+test('Charges within each other\'s blast count as one shot stopped', () => {
+  const none = chargesBy([]);
+  const one = chargesBy([[100, 0]]);
+  const three = chargesBy([[100, 0], [100, 50], [100, -50]]);
+  const apart = chargesBy([[100, 0], [-100, 0], [0, -100]]);
+  assert.ok(one > none, 'one Charge covers it a little');
+  // Two more beside it add less than the 2 energy they'd cost.
+  assert.ok(three - one < 20, `three together ${three}, one ${one}`);
+  assert.ok(apart > one, `three apart ${apart}, one ${one}`);
+});
+
+test('its own Charges in the way of its fire at the enemy count against them', () => {
+  // The same distance from the Citadel: toward the enemy Outpost, or away.
+  assert.ok(chargesBy([[0, 100]]) < chargesBy([[0, -100]]));
 });

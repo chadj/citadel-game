@@ -47,3 +47,24 @@ the same name. After "Players choose a name before they enter." add:
 > Two players in one game never share a name: if someone joins with a
 > name already there, it's shown with a number, as "Player 2", in that
 > game.
+
+## 09 — Threats: being under attack (D59)
+The spec lists threats as enemy launchers in reach, but doesn't say
+what being under attack is, or how a computer learns where an attack
+in the fog came from. After the "Threats" list, add:
+
+> - **Being under attack.** A building is under attack when an enemy
+>   damages it, a shot comes down near it, its Interceptors catch a
+>   shot meant for it, or an enemy Pulse, Worm, Surge or Rover reaches
+>   it. Conduits burning don't count. It stays under attack for about
+>   three turn cycles, since an attacker may wait for Interceptors to
+>   reload.
+> - **Attacks from the fog.** A computer watches every turn, not just
+>   its own, and sees what a player would. An enemy shot it sees in
+>   flight shows roughly where it came from. Explosions in the fog, and
+>   the sign of damage on hidden units, show where something is.
+
+In "Protecting the Citadel", after "Don't make it stand out." add:
+
+> Once the Citadel is under attack, the enemy knows where it is, and
+> this no longer holds back its defenses.

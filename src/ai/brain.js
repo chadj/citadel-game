@@ -24,7 +24,7 @@ import { Memory } from './belief.js';
 import { envFor, solve, landing } from './aim.js';
 import { candidates } from './candidates.js';
 import { landDistance } from './land.js';
-import { evaluate, planFor } from './value.js';
+import { evaluate, planFor, roverAlerts } from './value.js';
 import { personality as pick, STYLE_WEIGHTS } from './personalities.js';
 
 export const THINK_LIMIT_MS = 25000; // spec 09: about 20 to 30 seconds
@@ -54,11 +54,16 @@ export class Brain {
     this.personality = pick(personalityId, random);
     this.weights = STYLE_WEIGHTS[this.personality.style];
     this.player = player;
-    this.memory = new Memory(player, starts);
+    this.memory = new Memory(player, starts, { judgment: this.personality.judgment, random });
     this.last = null; // its last intended shot, and how often in a row
     this.recent = []; // its last few moves, to notice repeating itself
     this.misses = new Map(); // target id → attacks on it that did nothing
     this.lastAttack = null;
+  }
+
+  // Looks at a flight as it goes, every tick (decision D59).
+  watch(game) {
+    this.memory.watch(game);
   }
 
   observe(game) {
@@ -117,6 +122,7 @@ export class Brain {
     const j = this.personality.judgment;
     const plan = planFor(game, player, this.personality, this.weights, this.memory);
     const belief = this.memory.belief(game, plan.odds);
+    roverAlerts(belief, plan);
     const env = envFor(belief);
     let list = candidates(belief, plan, env, this.random);
     yield progress;
@@ -314,6 +320,8 @@ export class Brain {
     if (choice.c.target !== null && ITEMS[choice.c.item].category === 'weapon') {
       const t = this.memory.units.get(choice.c.target);
       if (t) this.lastAttack = { target: choice.c.target, armor: t.unit.armor };
+      // A guessed launcher: trusted less once it has been fired at.
+      if (choice.c.target < 0) this.memory.tried(-choice.c.target);
     }
     return this.aimed(choice.move, EYE[Math.min(repeats, EYE.length - 1)]);
   }

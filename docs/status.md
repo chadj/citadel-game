@@ -9,7 +9,7 @@ browser game (hot seat, replays, options and key rebinding, the
 narrow-screen layout), computer players, sound and the aide, fog of
 war, and online play (lobby, setup, lockstep games, taking back a seat
 after a dropped connection). `docs/provenance.md` says what each part
-implements; `docs/decisions.md` (D1 to D58) records every choice.
+implements; `docs/decisions.md` (D1 to D59) records every choice.
 
 Most recent work:
 - Landforms (D55): corner-level maps with cliffs, channels, ponds and
@@ -17,8 +17,13 @@ Most recent work:
 - Computers and water (D55, D58): Pontoons aimed where they'll land,
   and only where water is in the way.
 - Online fixes (D56): numbered repeat names, duplicated tabs, tabs in
-  the background; Skip coming back after the other player passes.
+  the background; Skip coming back after the other player passes; a
+  game in fog no longer goes out of step on its winning shot (the fog
+  is worked out afresh when the game ends, as at each turn's start).
 - The order of play doesn't show who has passed (D57).
+- Computers watch every turn, find attackers in the fog from what
+  they see, and answer attacks: Interceptors first, Barriers when
+  they can afford them, and firing back (D59).
 
 ## Next: M11, Polish
 - **AI speed on large maps.** Thinking peaks around 4 to 7 s on
@@ -47,7 +52,7 @@ Most recent work:
 
 ## Waiting on the user
 - `docs/spec-changes.md` has proposed spec wording for D38, D42, D53,
-  D55 and D56. The user applies it to `spec/`.
+  D55, D56 and D59. The user applies it to `spec/`.
 
 ## Checking work by hand
 - `npm start`, then open http://localhost:8080. For an online game,
@@ -56,7 +61,8 @@ Most recent work:
   `src/rules`, `src/ai` or `src/server`.
 - `node tools/ai-match.js "<map>"` plays two computers against each
   other with no browser, and prints their launches, failed landings,
-  where their Pontoons went and the slowest think (`--map` draws the
+  where their Pontoons went, hits on their Citadels, the winner and
+  the slowest think (`--map` draws the
   map). See the file's header for options.
 - `node tools/online-check.js` (with `npm start` running) plays an
   online game between two tabs of a headless Chrome, and checks after

@@ -40,7 +40,8 @@ export class Session {
   // `computers` maps a computer player's index to its brain:
   // { think(game, player) → move }, and optionally
   // { begin(game, player) → { work(ms) → move or null, best() → move },
-  //   observe(game) } to think in slices and to look at every turn.
+  //   observe(game), watch(game) } to think in slices, to look at every
+  //   turn, and to watch every tick of a flight.
   // `replay` plays a replay back.
   constructor(setup, { computers = {}, replay = null } = {}) {
     this.setup = setup;
@@ -181,6 +182,7 @@ export class Session {
       }
       this.acc -= TICK_MS;
       step(this.game);
+      for (const brain of Object.values(this.computers)) brain.watch?.(this.game);
       ticks += 1;
       this.flush();
       if (this.hold > 0) break;

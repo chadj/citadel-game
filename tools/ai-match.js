@@ -3,8 +3,9 @@
 
 // Plays two computers against each other on a map that comes with the
 // game, with no browser, and prints what they did: their launches,
-// failed landings and lost items, where their Pontoons went, the units
-// left at the end, and the slowest think. For checking how computer
+// failed landings and lost items, where their Pontoons went, hits on
+// their Citadels, the units left at the end, and the slowest think.
+// Both computers watch every flight and every move, as in a real game. For checking how computer
 // players behave after a change (spec 09).
 //
 //   node tools/ai-match.js "Long Meadow"
@@ -17,7 +18,7 @@
 //   --fog off       play without fog of war
 //   --map           also draw the map at the end, a tile to a letter
 
-import { createGame, applyMove, settle } from '../src/rules/game.js';
+import { createGame, applyMove, step } from '../src/rules/game.js';
 import { WIND_NONE, WET } from '../src/rules/constants.js';
 import { sampleTerrain, tileIndex } from '../src/rules/terrain/terrain.js';
 import { Brain, seeded } from '../src/ai/brain.js';
@@ -66,12 +67,14 @@ const joinsLand = (u) => {
 };
 
 const tally = {};
+let gone = []; // units destroyed during the last move, to look up
 const add = (key) => {
   tally[key] = (tally[key] ?? 0) + 1;
 };
 let slowest = 0;
 for (let turns = 0; game.state.phase !== 'over' && game.state.round <= rounds && turns < 400; turns++) {
   const p = game.state.turn.player;
+  gone = game.state.units.map((u) => ({ ...u }));
   const started = performance.now();
   const move = brains[p].think(game, p);
   slowest = Math.max(slowest, performance.now() - started);
@@ -83,8 +86,13 @@ for (let turns = 0; game.state.phase !== 'over' && game.state.round <= rounds &&
     add(`P${p} REFUSED ${result.reason}`);
     applyMove(game, { type: 'pass', player: p });
   }
-  settle(game);
+  while (game.state.phase === 'flight' || game.state.phase === 'rovers') {
+    step(game);
+    for (const b of brains) b.watch(game);
+  }
+  for (const b of brains) b.observe(game);
   for (const e of game.events.slice(before)) {
+    if (e.type === 'damage' && game.state.units.concat(gone).find((u) => u.id === e.unit)?.citadel) add(`P${e.owner} Citadel hit`);
     if (e.type === 'buildingFailed') add(`P${p} failed ${e.kind} (${e.reason})`);
     if (e.type === 'pontoonLost') add(`P${p} Pontoon lost`);
     if (e.type === 'built' && e.kind === 'pontoon') {
@@ -94,11 +102,14 @@ for (let turns = 0; game.state.phase !== 'over' && game.state.round <= rounds &&
   }
 }
 
+for (const [i, b] of brains.entries()) {
+  tally[`P${i} leads to the enemy at the end`] = b.memory.leads.length;
+}
 const units = {};
 for (const u of game.state.units) units[`P${u.owner} ${u.kind}`] = (units[`P${u.owner} ${u.kind}`] ?? 0) + 1;
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)));
 console.log(`${name}: ${personalities.join(' v ')}, seed ${seed}; ended in round ${game.state.round}` +
-  `${game.state.phase === 'over' ? ' (game over)' : ''}; slowest think ${Math.round(slowest)} ms`);
+  `${game.state.phase === 'over' ? ` (won by P${game.events.find((e) => e.type === 'gameOver')?.winner})` : ''}; slowest think ${Math.round(slowest)} ms`);
 console.log('Moves and events:', sorted(tally));
 console.log('Units at the end:', sorted(units));
 

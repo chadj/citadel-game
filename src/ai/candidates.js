@@ -41,7 +41,10 @@ export function candidates(game, plan, env, random) {
   const spin = Math.floor(random() * 30);
   const enemyLaunchers = theirs.filter((u) => isLauncher(u) && !s.players[u.owner].knockedOut);
   const threatened = (u) => enemyLaunchers.some((l) => distance(size, l, u) <= reachOf(l) + 60 * PX);
-  const precious = mine.filter((u) => (u.kind === 'outpost' || u.kind === 'battery' || u.kind === 'extractor') && threatened(u));
+  // Those in enemy reach, and those under attack from where it can't see
+  // (decision D59).
+  const precious = mine.filter((u) => (u.kind === 'outpost' || u.kind === 'battery' || u.kind === 'extractor')
+    && (threatened(u) || plan.attacked.has(u.id)));
   const freeVents = game.map.vents.filter((v) => !s.units.some((u) => distance(size, u, v) < v.radius));
 
   for (const l of launchers) {
@@ -52,7 +55,7 @@ export function candidates(game, plan, env, random) {
     if (l.kind === 'outpost') {
       if (can(l, 'outpost')) {
         for (let h = spin; h < 360; h += 30) for (const p of [350, 600, 850]) add(l, 'outpost', h, p);
-        const goals = [...freeVents, ...plan.unseenStarts, ...enemyLaunchers]
+        const goals = [...freeVents, ...plan.unseenStarts, ...plan.leads, ...enemyLaunchers]
           .filter((g) => distance(size, l, g) > 150 * PX);
         for (const g of goals.slice(0, 8)) aimAt(l, 'outpost', toward(l, g, Math.min(distance(size, l, g) - 60 * PX, 0.85 * r)));
         // Onto its own Pontoons, and past them, to carry a crossing on.
@@ -77,11 +80,14 @@ export function candidates(game, plan, env, random) {
         const a = foe ? (bearing(size, u, foe) * Math.PI) / 180 : 0;
         const ring = (d, offs) => offs.map((o) => ({ x: u.x + Math.cos(a + o) * d, y: u.y + Math.sin(a + o) * d }));
         if (can(l, 'interceptor')) for (const p of ring(75 * PX, [0, 1.6, -1.6])) aimAt(l, 'interceptor', p);
-        if (can(l, 'barrier')) for (const p of ring(45 * PX, [0, 2.4])) aimAt(l, 'barrier', p);
+        // Its dome covers 160 px; the shortest throw is about 100 px.
+        if (can(l, 'barrier')) for (const p of ring(110 * PX, [0, 2.4, -2.4])) aimAt(l, 'barrier', p);
         if (can(l, 'charges')) aimAt(l, 'charges', ring(120 * PX, [0])[0]);
       }
-      if (can(l, 'skyProbe') && plan.fog && plan.knownEnemies < 4) {
-        for (const st of plan.unseenStarts.slice(0, 3)) aimAt(l, 'skyProbe', toward(l, st, Math.min(distance(size, l, st), 0.95 * r)));
+      if (can(l, 'skyProbe') && plan.fog && (plan.knownEnemies < 4 || plan.leads.length > 0)) {
+        // Where it has leads to the enemy first, then the starts.
+        const looks = [...plan.leads, ...(plan.knownEnemies < 4 ? plan.unseenStarts : [])].slice(0, 4);
+        for (const st of looks) aimAt(l, 'skyProbe', toward(l, st, Math.min(distance(size, l, st), 0.95 * r)));
         for (let h = spin; h < 360; h += 90) add(l, 'skyProbe', h, POWER_MAX);
       }
       if (can(l, 'repair')) {

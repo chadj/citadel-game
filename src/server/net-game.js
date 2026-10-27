@@ -125,6 +125,7 @@ export class NetGame {
     while (this.game.state.phase === 'flight' || this.game.state.phase === 'rovers') {
       if (ticks >= MAX_SETTLE_TICKS) throw new Error('the turn never settled');
       step(this.game);
+      for (const b of Object.values(this.brains)) b.watch?.(this.game);
       ticks++;
     }
     return ticks;

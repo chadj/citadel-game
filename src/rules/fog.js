@@ -12,7 +12,8 @@
 // computer players look. Nothing in the rules depends on the fog during
 // a flight, so the counts are kept up tick by tick only when the game
 // asks for it with `game.liveFog`, as a screen showing the flight does.
-// Either way, the state at a turn's start is the same.
+// Either way, the state at a turn's start, and at the game's end, is the
+// same.
 //
 // Where a weapon's flight ended, its view stays a moment: state.lingers
 // lists { side, x, y, z, until }.

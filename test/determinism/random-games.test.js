@@ -2,16 +2,19 @@
 // Copyright (C) 2026 Chad Johnson
 
 // Spec 12, Determinism checks 1 (the same game twice) and 3 (saved and
-// played back), on games of random legal moves.
+// played back), on games of random legal moves; and a game's end on a
+// machine that keeps the fog up during flights and one that doesn't.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { startRecording, playReplay } from '../../src/rules/replay.js';
 import { hashState } from '../../src/rules/hash.js';
 import { ITEMS, canLaunch, itemCost } from '../../src/rules/items.js';
-import { isLauncher, isWorking } from '../../src/rules/units.js';
+import { isLauncher, isWorking, citadelOf } from '../../src/rules/units.js';
 import { WIND_MEDIUM, POWER_MAX } from '../../src/rules/constants.js';
+import { createGame, applyMove, settle } from '../../src/rules/game.js';
 import { makeSetup, seededRandom } from '../helpers/setups.js';
+import { aimAt } from '../helpers/build.js';
 
 const ITEM_IDS = Object.keys(ITEMS);
 
@@ -105,4 +108,23 @@ test('a replay with a move that doesn\'t count is refused', () => {
   const { replay } = randomGame(6, 2);
   const broken = { ...replay, moves: [{ type: 'pass', player: 1 }, ...replay.moves] };
   assert.throws(() => playReplay(broken), /move 0 doesn't play back/);
+});
+
+test('a game that ends with a shot ends the same with the fog kept up during the flight or not', () => {
+  // The screen keeps the fog up as shots fly; the server doesn't. The
+  // winning shot leaves no next turn to bring them back together.
+  const setup = makeSetup();
+  const games = [createGame(setup), createGame(setup)];
+  games[0].liveFog = true;
+  for (const game of games) {
+    const from = citadelOf(game.state, 0);
+    const target = citadelOf(game.state, 1);
+    target.armor = 1;
+    target.x = from.x + 400 * 1024; // in reach
+    const { heading, power } = aimAt(game, from, target.x / 1024, target.y / 1024);
+    assert.ok(applyMove(game, { type: 'launch', player: 0, launcher: from.id, item: 'shell', heading, power }).ok);
+    settle(game);
+    assert.equal(game.state.phase, 'over');
+  }
+  assert.equal(hashState(games[0].state), hashState(games[1].state));
 });

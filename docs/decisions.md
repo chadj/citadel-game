@@ -1344,3 +1344,87 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     over the best Outpost this side of it.
   - And only where the way round by land to the far shore is more
     than twice as long as straight across, or there's none.
+
+## D59. Computers watch every turn, and answer attacks
+- **Date:** 2026-10-26
+- **Spec:** 09 Playing fair, Threats, How the priorities shift
+  (Emergencies come first), What things are worth (a defense),
+  Protecting the Citadel, Defense playbook; 08 What players see (some
+  things show through the fog)
+- **Problem (reported by the user):** computers didn't use the
+  explosions and damage they could see in the fog to find players, and
+  didn't respond to being attacked, even when their Citadel was hit.
+  - They looked at the game only when their own turn started. A shot
+    from a launcher in the fog left them nothing to go on but lost
+    armor, and they counted danger only from enemy launchers they
+    had seen. With their Citadel shelled down from 50 armor to 20 by a
+    Battery in the fog, every computer built an Extractor or passed.
+  - Their Citadel counted for less the more it was hurt, the opposite
+    of how urgent it is.
+  - Danger stopped growing after two enemy launchers in reach.
+- **Decision (the user's definition of under attack, and that a guess at
+  where a shot came from be no closer than a person's; the weights are
+  ours):**
+  - **What counts as an attack** on a building: damage; a shot that
+    comes down near it, whether it explodes or not; a shot its
+    Interceptors catch; a Pulse; a Worm; a Surge; an enemy Rover's
+    line running into it. A conduit burning doesn't count.
+  - **What can be under attack:** its Citadel, Outposts, Batteries and
+    Extractors, within about 130 px of the attack.
+  - **How long:** three turn cycles, since an attacker may wait a turn
+    cycle for the Interceptors to reload.
+  - **Watching every turn.** A computer watches every flight, tick by
+    tick, as a player watches the screen. Only what its side can see
+    counts:
+    - an enemy shot seen in flight is followed back along its arc to
+      where it left at 45° (spec 01), without allowing for the wind.
+      It judges that place as a person would by eye, not exactly: from
+      where it saw the shot, the way it came is up to 8° off, and how
+      far up to 30% off, distance being harder to judge. More shots
+      from the same place (guesses within 250 px) sharpen the guess,
+      to their average. An Outpost stands in for a launcher there in
+      its plans. It's
+      trusted less each time the computer fires at it, and dropped
+      once the place can be seen, or once a launcher it has seen
+      explains it;
+    - explosions in the fog, and the sign of damage on enemy units it
+      can't see, are leads: places worth scouting and expanding toward.
+  - **The response,** in this order of how it weighs them:
+    - **An Interceptor,** cheap and easy, around what's under attack.
+    - **A Barrier,** if it can afford one.
+    - **Firing back** at the launcher it has seen or guessed, which
+      can make the attacker turn to its own defense.
+  - **Its Citadel:**
+    - it counts for the same however hurt it is, and its danger grows
+      as its armor falls;
+    - in enemy reach with nothing covering it, it's an emergency (spec
+      09), more so when under attack;
+    - once it's under attack, the enemy knows where it is, so nothing
+      holds back how many defenses go around it.
+  - **Barriers aimed where they can land.** A computer aimed a
+    Barrier 45 px from the building it protects, closer than the
+    shortest throw (about 100 px), so it could never cover a launcher
+    from that launcher. It now aims 110 px out, well inside the dome.
+  - **Charges weighed as they work** (asked for by the user, after a
+    game where they did little). Laid from one launch, three Charges
+    land inside each other's blast and go off together (spec 04,
+    Blasts can chain), so one 1-energy Shell clears all three; and
+    the owner's own shots set them off (spec 06), so Charges between
+    a launcher and the enemy block its own fire back. A computer
+    counted each as 15% cover, for good.
+    - Now Charges within each other's blast count as one shot stopped.
+    - Its own Charges near one of its launchers, by the line toward an
+      enemy launcher in reach, count against it.
+    - So the Interceptor is its everyday defense against shots.
+  - **More attackers count for more:** each enemy launcher in reach
+    past the first adds 0.6 of the first. Before, the count stopped
+    at two.
+  - **Personality:**
+    - its style's weight on defense scales all of this, so a defender
+      answers hardest and an aggressor fires back most;
+    - poorer judgment notices less: it always notices a hit for the
+      hardest computer, and 68% of hits for the easiest. It notices a
+      near miss for 44% to 100%. The easiest judges where a shot came
+      from up to 18° and 54% off. From one Battery shot at 600 px,
+      the hardest computer's guess was a median 49 px off and the
+      easiest's 89 px; after four shots, 25 px and 56 px.

@@ -13,11 +13,13 @@
 //   - reach: vents, enemy units and likely enemy starts its launchers
 //     reach;
 //   - threats: its units in enemy reach, less what its Barriers,
-//     Interceptors and Charges cover; Rovers' lines; Worms; its own
-//     Extractors beside its precious buildings;
-//   - sight: with fog on, how much of the map its side sees.
+//     Interceptors and Charges cover, and far more for those under
+//     attack, and its Citadel; Rovers' lines; Worms; its own Extractors
+//     beside its precious buildings (decision D59);
+//   - sight: with fog on, how much of the map its side sees, and the
+//     leads to the enemy it can see the place of.
 
-import { PX, WET, NODE_SPACING, ENERGY_CAP, VENT_EXTRACTOR_INCOME, EXTRACTOR_INCOME, INTERCEPTOR_RANGE, DOME_RADIUS, ROVER_DRIVE, ROVER_BLAST, EXTRACTOR_BLAST, CHARGE_BLAST } from '../rules/constants.js';
+import { PX, FOG_CELL, WET, NODE_SPACING, ENERGY_CAP, VENT_EXTRACTOR_INCOME, EXTRACTOR_INCOME, INTERCEPTOR_RANGE, DOME_RADIUS, ROVER_DRIVE, ROVER_BLAST, EXTRACTOR_BLAST, CHARGE_BLAST } from '../rules/constants.js';
 import { UNIT_KINDS, isWorking } from '../rules/units.js';
 import { roundIncome } from '../rules/energy.js';
 import { isGone } from '../rules/conduits.js';
@@ -33,6 +35,11 @@ const OWN_CITADEL = 700;
 const ENEMY_CITADEL = 600;
 const REACH = Object.freeze({ outpost: 500 * PX, battery: 900 * PX });
 const SIGHT_CELL = 0.02;
+const ALARM = 1.5; // how much more danger a building under attack is in
+const EMERGENCY = 60; // its Citadel threatened with nothing covering it (spec 09)
+const RETALIATE = 100; // harm to a launcher attacking it, all its armor gone
+const BLOCKED = 25; // its own Charges in the way of its fire at an enemy launcher
+const MORE_LAUNCHERS = 0.6; // what each enemy launcher in reach past the first adds
 
 const d2 = (size, a, b) => {
   const dx = delta(a.x, b.x, size);
@@ -63,6 +70,10 @@ export function planFor(game, player, personality, weights, memory) {
     horizon: (3 + 5 * j) * Math.max(0.45, 1 - round / 25),
     odds: memory.citadelOdds(game),
     unseenStarts: memory.unseenStarts(),
+    // Its own units under attack, as id → heat (decision D59); and the
+    // places it has a lead to the enemy, other than launchers it guessed.
+    attacked: memory.attacked(game.state),
+    leads: memory.leads.filter((l) => l.kind !== 'shooter'),
     fog: !!game.state.fog,
     knownEnemies: memory.units.size,
     round0: round,
@@ -79,9 +90,12 @@ export function unitWorth(plan, u, ownSide) {
     v += income * (ownSide ? plan.horizon : Math.min(plan.horizon, 4)) * plan.weights.economy;
   }
   if (u.kind === 'outpost') {
-    if (ownSide && u.citadel) v = OWN_CITADEL;
-    else if (!ownSide) v += (plan.odds.get(u.id) ?? 0) * ENEMY_CITADEL;
+    // The game rides on its own Citadel, however hurt it is.
+    if (ownSide && u.citadel) return OWN_CITADEL;
+    if (!ownSide) v += (plan.odds.get(u.id) ?? 0) * ENEMY_CITADEL;
   }
+  // A launcher guessed from where a shot came from may not be there.
+  if (u.guess !== undefined) v *= 0.6 * u.guess;
   return v * (0.55 + (0.45 * u.armor) / spec.armor);
 }
 
@@ -146,6 +160,7 @@ export function evaluate(game, plan) {
   for (const u of theirs) value += 0.15 * unitWorth(plan, u, false) * w.attack * covered(u, launchers);
   if (plan.knownEnemies < 4) {
     for (const st of plan.unseenStarts) value += 70 * w.attack * covered(st, outposts, true);
+    for (const l of plan.leads) value += 35 * w.attack * covered(l, outposts, true);
   }
 
   // Threats.
@@ -153,17 +168,44 @@ export function evaluate(game, plan) {
   const myInterceptors = mine.filter((u) => u.kind === 'interceptor' && isWorking(s, u));
   const myBarriers = mine.filter((u) => u.kind === 'barrier' && u.up && isWorking(s, u));
   const myCharges = mine.filter((u) => u.kind === 'charge');
+  // Charges within each other's blast go off together: a group of them
+  // stops one shot, once (spec 04, Blasts can chain).
+  const chains = chargeChains(size, myCharges);
   let danger = 0;
   for (const u of mine) {
     if (u.kind === 'charge' || u.kind === 'rover' || u.kind === 'skyProbe') continue;
+    // A guessed launcher counts for as much as it's trusted.
     let threats = 0;
-    for (const l of enemyLaunchers) if (d2(size, l, u) <= (reachOf(l) + 60 * PX) ** 2) threats += 1;
+    for (const l of enemyLaunchers) if (d2(size, l, u) <= (reachOf(l) + 60 * PX) ** 2) threats += l.guess ?? 1;
+    // Under attack: something reaches it, seen or not. Knowing where
+    // from counts for more, so firing back there helps.
+    const heat = plan.attacked.get(u.id) ?? 0;
+    if (heat > 0) threats = Math.max(0.5, threats);
     if (threats === 0) continue;
     let cover = 0;
     for (const i of myInterceptors) if (i !== u && d2(size, i, u) <= INTERCEPTOR_RANGE ** 2) cover += 0.38;
     for (const b of myBarriers) if (d2(size, b, u) <= (DOME_RADIUS - 20 * PX) ** 2) cover += 0.7;
-    for (const c of myCharges) if (d2(size, c, u) <= (130 * PX) ** 2) cover += 0.15;
-    danger += worth.get(u.id) * 0.13 * Math.min(2, threats) * (1 - Math.min(0.85, cover));
+    for (const chain of chains) if (chain.some((c) => d2(size, c, u) <= (130 * PX) ** 2)) cover += 0.15;
+    const pressure = threats <= 1 ? threats : 1 + MORE_LAUNCHERS * (threats - 1);
+    let d = worth.get(u.id) * 0.13 * pressure * (1 + ALARM * heat) * (1 - Math.min(0.85, cover));
+    if (u.citadel) {
+      // The more it's hurt, the more urgent; and with nothing covering
+      // it, an emergency.
+      d *= 2 - u.armor / UNIT_KINDS.outpost.armor;
+      if (cover === 0) d += EMERGENCY * (1 + heat);
+    }
+    danger += d;
+  }
+  // Firing back: harm done to an enemy launcher that reaches what's
+  // under attack, seen or guessed, puts the attacker on its guard.
+  let alarm = 0;
+  for (const h of plan.attacked.values()) alarm = Math.max(alarm, h);
+  if (alarm > 0) {
+    const attacked = mine.filter((u) => plan.attacked.has(u.id));
+    for (const l of enemyLaunchers) {
+      if (!attacked.some((u) => d2(size, l, u) <= (reachOf(l) + 60 * PX) ** 2)) continue;
+      value += RETALIATE * alarm * w.attack * (l.guess ?? 1) * (1 - l.armor / UNIT_KINDS[l.kind].armor);
+    }
   }
   // Worms eat into what they infect.
   for (const u of mine) if (u.worm) danger += worth.get(u.id) * 0.15;
@@ -177,6 +219,15 @@ export function evaluate(game, plan) {
     }
   }
   value -= danger * w.defense;
+
+  // Its own Charges in the way of its own launchers' fire at the enemy:
+  // its shots set them off too (spec 06, Proximity Charges).
+  for (const l of launchers) {
+    for (const e of enemyLaunchers) {
+      if (d2(size, l, e) > (reachOf(l) + 60 * PX) ** 2) continue;
+      if (chains.some((chain) => chain.some((c) => inTheWay(size, l, e, c)))) value -= BLOCKED * w.attack * (e.guess ?? 1);
+    }
+  }
 
   // Rovers: where each one's line meets something, and its blast there.
   for (const r of [...mine, ...theirs]) {
@@ -209,8 +260,44 @@ export function evaluate(game, plan) {
     // opening.
     const opening = Math.min(1, plan.round0 / 4);
     value += seen * SIGHT_CELL * opening * (plan.knownEnemies < 3 ? 1 : 0.35);
+    // Seeing the place a lead points to.
+    const n = s.fog.cells;
+    for (const l of plan.leads) {
+      const k = Math.floor(l.y / FOG_CELL) % n * n + Math.floor(l.x / FOG_CELL) % n;
+      if (counts[k] > 0) value += 15 * w.attack;
+    }
   }
   return value;
+}
+
+// Its Charges in groups that go off together: each within the blast of
+// another in its group.
+function chargeChains(size, charges) {
+  const chains = [];
+  const left = [...charges];
+  while (left.length > 0) {
+    const chain = [left.pop()];
+    for (let k = 0; k < chain.length; k++) {
+      for (let j = left.length - 1; j >= 0; j--) {
+        if (d2(size, chain[k], left[j]) <= CHARGE_BLAST.radius ** 2) chain.push(...left.splice(j, 1));
+      }
+    }
+    chains.push(chain);
+  }
+  return chains;
+}
+
+// Whether a Charge sits where a launcher's shots toward a target pass
+// low enough to set it off: close to the launcher, by the line out.
+function inTheWay(size, launcher, target, charge) {
+  const tx = delta(launcher.x, target.x, size);
+  const ty = delta(launcher.y, target.y, size);
+  const cx = delta(launcher.x, charge.x, size);
+  const cy = delta(launcher.y, charge.y, size);
+  const len = Math.hypot(tx, ty) || 1;
+  const along = (cx * tx + cy * ty) / len;
+  const across = Math.abs(cx * ty - cy * tx) / len;
+  return along > 0 && along <= 160 * PX && across <= 60 * PX;
 }
 
 // Whether there's water without a Pontoon on the line from a launcher
@@ -233,6 +320,22 @@ function wetBetween(game, plan, from, to, far, bridges) {
   }
   cache.set(key, wet);
   return wet;
+}
+
+// Its precious buildings that an enemy Rover's line runs into: they're
+// under attack (decision D59). Added to `plan.attacked`.
+export function roverAlerts(game, plan) {
+  const s = game.state;
+  const size = game.map.size;
+  for (const r of s.units) {
+    if (r.kind !== 'rover' || r.triggered || game.sides[r.owner] === plan.side) continue;
+    const hit = roverStop(game, r, r.heading);
+    if (!hit) continue;
+    for (const u of s.units) {
+      if (game.sides[u.owner] !== plan.side || (u.kind !== 'outpost' && u.kind !== 'battery' && u.kind !== 'extractor')) continue;
+      if (d2(size, u, hit) <= ROVER_BLAST.radius ** 2) plan.attacked.set(u.id, 1);
+    }
+  }
 }
 
 // Where a Rover driving on along a heading first meets another unit or
