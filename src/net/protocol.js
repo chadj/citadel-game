@@ -16,7 +16,9 @@
 //   host       { name, settings }   host a game
 //   join       { room }             join a game
 //   leave      {}                   leave the game's setup screen
-//   setHost    { settings, seats }  the host's choices
+//   setHost    { settings, seats }  the host's choices (seats: kind, team,
+//                                   and a computer's personality, faction
+//                                   and color)
 //   setMe      { faction, color }   a player's own choices
 //   ready      { ready }
 //   start      {}                   the host starts the game

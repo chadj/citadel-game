@@ -117,6 +117,24 @@ test('a player asking for a taken color gets a free one; only the host changes t
   assert.ok(![room.seats[0].color, room.seats[1].color].includes(room.seats[2].color));
 });
 
+test('the host chooses a computer\'s faction and color; a taken color gets a free one', () => {
+  const { host, guest } = twoPlayers();
+  guest.say('join', { room: guest.last('games').games[0].id, me: { faction: 0, color: 3 } });
+  host.say('setHost', { settings: SETTINGS, seats: [{}, {}, { kind: 'computer', personality: 'random' }] });
+  const added = host.last('room').room.seats[2];
+  const free = [0, 1, 4, 5].find((c) => c !== added.color);
+  host.say('setHost', { settings: SETTINGS, seats: [{}, {}, { kind: 'computer', personality: 'random', faction: 2, color: free }] });
+  let seats = guest.last('room').room.seats;
+  assert.deepEqual([seats[2].faction, seats[2].color], [2, free]);
+  // The guest's color is taken: the computer gets a free one instead.
+  host.say('setHost', { settings: SETTINGS, seats: [{}, {}, { kind: 'computer', personality: 'random', faction: 2, color: 3 }] });
+  seats = guest.last('room').room.seats;
+  assert.ok(![seats[0].color, seats[1].color].includes(seats[2].color));
+  // Only the host: a guest's message changes nothing.
+  guest.say('setHost', { settings: SETTINGS, seats: [{}, {}, { kind: 'computer', faction: 0, color: 0 }] });
+  assert.equal(guest.last('room').room.seats[2].faction, 2);
+});
+
 test('a name already in the game gets a number, in the seats, the chat and the game', () => {
   const time = clock();
   const lobby = new Lobby({ ...time, random: () => 0.5 });

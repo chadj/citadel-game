@@ -158,7 +158,7 @@ export class SetupScene extends BaseScene {
     if (this.isHost) {
       net.send('setHost', {
         settings: { map: this.generated ? GENERATED : MAPS[this.mapIndex].name, generator: this.generator, clock: this.clock, wind: this.wind, fog: this.fog },
-        seats: this.seats.map((s) => ({ kind: s.kind, personality: s.personality, team: s.team })),
+        seats: this.seats.map((s) => ({ kind: s.kind, personality: s.personality, team: s.team, faction: s.faction, color: s.color })),
       });
     }
     const me = this.seats[you];

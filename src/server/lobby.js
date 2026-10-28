@@ -240,6 +240,17 @@ export class Lobby {
       }
       if (room.seats[i].kind === 'computer') {
         room.seats[i].personality = pick(w.personality, [RANDOM, ...PERSONALITIES.map((p) => p.id)], room.seats[i].personality);
+        // A computer's faction and color are the host's too, once it has
+        // its own (not in the message that adds it). A taken color gets a
+        // random free one, as for a player.
+        if (kind === seat.kind) {
+          const f = index(w.faction, FACTIONS);
+          if (f !== null) room.seats[i].faction = f;
+          const c = index(w.color, COLORS);
+          if (c !== null && c !== room.seats[i].color) {
+            room.seats[i].color = claimColor(room.seats.map((s) => (s.kind === 'human' || s.kind === 'computer' ? s : {})), i, c, this.random);
+          }
+        }
       }
     });
     this.roomChanged(room);

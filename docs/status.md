@@ -34,6 +34,8 @@ Most recent work:
 - `docs/formats.md`: replay files, setups, moves and map data, and
   when old replays stop playing back.
 - Replay files are named with the date and time they're saved.
+- Online, the host can change a computer's faction and color (spec 12,
+  What each player chooses: the server used to ignore it).
 
 ## Next: M11, Polish
 - **AI speed on large maps.** Thinking peaks around 4 to 7 s on
