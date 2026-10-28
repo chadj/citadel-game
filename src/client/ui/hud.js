@@ -198,11 +198,12 @@ export class Hud {
     this.itemBtns.forEach((b, k) => b.setSize(iw - 4, 40).setPosition(bx + lw + 14 + (k % 3) * iw, by + 10 + Math.floor(k / 3) * 46));
     this.noItems.setPosition(bx + lw + 16, by + 14);
     this.itemTitle.setPosition(bx + lw + 16, by + 8);
+    // The meter above Launch, so a finger holding Launch doesn't hide it.
     const ax = bx + lw + 14;
-    this.left.setSize(46, 46).setPosition(ax, by + 34);
-    this.launch.setSize(bw - lw - 24 - 104, 46).setPosition(ax + 52, by + 34);
-    this.right.setSize(46, 46).setPosition(bx + bw - 52, by + 34);
-    this.meterBox = { x: ax + 52, y: by + 86, w: bw - lw - 24 - 104, h: 10 };
+    this.meterBox = { x: ax + 52, y: by + 30, w: bw - lw - 24 - 104, h: 10 };
+    this.left.setSize(46, 46).setPosition(ax, by + 46);
+    this.launch.setSize(bw - lw - 24 - 104, 46).setPosition(ax + 52, by + 46);
+    this.right.setSize(46, 46).setPosition(bx + bw - 52, by + 46);
     this.cancel.setSize(70, 24).setPosition(bx + bw - 76, by + 100);
     this.override.setSize(76, 24).setPosition(ax, by + 100);
 

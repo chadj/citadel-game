@@ -704,6 +704,9 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     Q previous, O closest Outpost, A last attacked, T chat, Z and X turn
     the aim, L launch, V override. Every letter can be changed; a
     letter does one thing only.
+  - **The meter sits above Launch** (2026-10-28, asked for by the
+    user): on a phone, a finger holding Launch would hide a meter below
+    it. The aim arrows stay either side of Launch.
 
 ## D39. Who sees the launch (Choice) — Ours
 - **Date:** 2026-10-25

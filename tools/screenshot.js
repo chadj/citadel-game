@@ -8,6 +8,7 @@
 //
 //   npm start                                   (in another terminal)
 //   node tools/screenshot.js out.png [--scene setup.js] [--wait 1500]
+//                                    [--size 390,844]
 //
 //   --scene file  a script run in the page once the game has started:
 //                 the body of an async function given `sc` (the game
@@ -15,6 +16,8 @@
 //                 the game, such as '/src/rules/units.js'. What it
 //                 returns is printed.
 //   --wait ms     how long to let it draw before the screenshot (1500)
+//   --size w,h    the window, in pixels (1280,800); under 760 wide the
+//                 game lays itself out for a phone
 //   CHROME=path   where Chrome is (the macOS default otherwise)
 //   URL=...       the game (http://localhost:8080/)
 //
@@ -61,17 +64,18 @@ const option = (name, fallback) => {
 };
 const out = args[0];
 if (!out || out.startsWith('--')) {
-  console.error('Usage: node tools/screenshot.js out.png [--scene setup.js] [--wait ms]');
+  console.error('Usage: node tools/screenshot.js out.png [--scene setup.js] [--wait ms] [--size w,h]');
   process.exit(1);
 }
 const scene = option('scene', null);
 const WAIT = Number(option('wait', 1500));
+const SIZE = option('size', '1280,800');
 const G = 'window.lunarCitadel';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const profile = mkdtempSync(join(tmpdir(), 'lunar-citadel-shot-'));
 const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${profile}`,
-  '--window-size=1280,800', '--disable-3d-apis', '--disable-gpu', 'about:blank'], { stdio: 'ignore' });
+  `--window-size=${SIZE}`, '--disable-3d-apis', '--disable-gpu', 'about:blank'], { stdio: 'ignore' });
 let failed = false;
 try {
   for (let k = 0; k < 50; k++) {
