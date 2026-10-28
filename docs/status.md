@@ -35,6 +35,9 @@ Most recent work:
   hosting (now just under the list) fits the screen.
 - On a phone's game summary, the table turns on its side (a column for
   each player), and the save buttons go under the replay's name.
+- On iPhone, opened from the Home Screen, the game reaches the bottom of
+  the screen: iOS 26 makes the page short by the status bar's height,
+  and `src/client/main.js` makes up for it.
 - Hillier maps (D61): the Terrain steps raise more land and more
   Mountains, measured on the finished map; the built-in maps were
   regenerated and the two hand-drawn ones redrawn.

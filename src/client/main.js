@@ -22,6 +22,32 @@ import { DPR } from './ui/kit.js';
 // The game fills its element, which index.html keeps to the screen's
 // safe area (clear of notches and the home indicator).
 const holder = document.getElementById('game');
+
+// Opened from an iPhone's Home Screen, the page can come out shorter than
+// the screen by about the status bar's height (seen on iOS 26), leaving
+// an empty strip along the bottom. There the game's element is given the
+// screen's height instead. It can't stay `position: fixed`: iOS doesn't
+// draw a fixed element below the short page. Only when the app fills the
+// screen's width, so an iPad app in a window of its own is left alone.
+function fillScreen() {
+  if (!navigator.standalone) return;
+  const portrait = window.innerHeight >= window.innerWidth;
+  const [across, tall] = portrait
+    ? [Math.min(screen.width, screen.height), Math.max(screen.width, screen.height)]
+    : [Math.max(screen.width, screen.height), Math.min(screen.width, screen.height)];
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position: fixed; top: 0; bottom: 0; visibility: hidden';
+  document.body.append(probe);
+  const short = tall - probe.getBoundingClientRect().height;
+  probe.remove();
+  const fix = window.innerWidth === across && short > 0 && short <= 80;
+  Object.assign(holder.style, fix
+    ? { position: 'absolute', bottom: 'auto', height: `calc(${tall}px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))` }
+    : { position: '', bottom: '', height: '' });
+}
+fillScreen();
+window.addEventListener('resize', fillScreen);
+
 const size = () => [Math.max(1, holder.clientWidth) * DPR, Math.max(1, holder.clientHeight) * DPR];
 
 const game = new Phaser.Game({
