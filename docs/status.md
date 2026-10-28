@@ -33,6 +33,7 @@ Most recent work:
   regenerated and the two hand-drawn ones redrawn.
 - `docs/formats.md`: replay files, setups, moves and map data, and
   when old replays stop playing back.
+- Replay files are named with the date and time they're saved.
 
 ## Next: M11, Polish
 - **AI speed on large maps.** Thinking peaks around 4 to 7 s on

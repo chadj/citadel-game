@@ -8,7 +8,7 @@
 import { BaseScene } from './base.js';
 import { Button, label, textField, UI } from '../ui/kit.js';
 import { gameStats } from '../core/stats.js';
-import { saveReplay, replayToText } from '../core/replay-store.js';
+import { saveReplay, replayToText, replayFileName } from '../core/replay-store.js';
 import { PLAYER_COLORS, css } from '../render/palette.js';
 
 const COLUMNS = [
@@ -75,8 +75,7 @@ export class SummaryScene extends BaseScene {
   }
 
   download() {
-    const name = (this.nameField?.input.value || 'replay').replace(/[^\w -]+/g, '').trim() || 'replay';
-    downloadText(`${name}.lcreplay.json`, replayToText(this.replayData));
+    downloadText(replayFileName(this.nameField?.input.value), replayToText(this.replayData));
   }
 
   layout() {

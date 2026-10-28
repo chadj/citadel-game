@@ -7,7 +7,7 @@
 
 import { BaseScene } from './base.js';
 import { Button, label, UI } from '../ui/kit.js';
-import { listReplays, deleteReplay, replayToText, replayFromText, playable } from '../core/replay-store.js';
+import { listReplays, deleteReplay, replayToText, replayFromText, replayFileName, playable } from '../core/replay-store.js';
 import { downloadText } from './summary.js';
 
 const PER_PAGE = 6;
@@ -28,7 +28,7 @@ export class ReplaysScene extends BaseScene {
       const row = {
         name: label(this, '', { size: 14 }),
         watch: new Button(this, 'Watch', { size: 13, onClick: () => this.watch(row.entry.replay) }),
-        file: new Button(this, 'File', { size: 13, onClick: () => downloadText(`${row.entry.name}.lcreplay.json`, replayToText(row.entry.replay)) }),
+        file: new Button(this, 'File', { size: 13, onClick: () => downloadText(replayFileName(row.entry.name), replayToText(row.entry.replay)) }),
         del: new Button(this, 'Delete', { size: 13, onClick: () => { deleteReplay(row.entry.id); this.refresh(); } }),
       };
       this.rows.push(row);

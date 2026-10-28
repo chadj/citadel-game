@@ -24,8 +24,12 @@ A replay is the game's setup and its moves (spec 12, What a replay
 records; CLAUDE.md, Architecture). Playing it back runs the whole game
 again from them; nothing else is stored.
 
-A saved replay file is named `<name>.lcreplay.json` and holds one JSON
-object:
+A saved replay file is named after the replay, with the local date and
+time it was saved to the second, so files don't collide in a downloads
+folder: `<name> YYYY-MM-DD HH-MM-SS.lcreplay.json`, as
+`Duel 2026-10-28 14-32-05.lcreplay.json` (characters other than letters,
+digits, spaces, `_` and `-` are left out of the name). It holds one
+JSON object:
 
 ```json
 {

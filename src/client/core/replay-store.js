@@ -39,6 +39,17 @@ export function deleteReplay(id, storage = globalThis.localStorage) {
   return write(listReplays(storage).filter((r) => r.id !== id), storage);
 }
 
+// A replay file's name: the replay's name and the local date and time,
+// to the second, so files saved from the same game don't collide, as
+// "Duel 2026-10-28 14-32-05.lcreplay.json".
+export function replayFileName(name, when = new Date()) {
+  const base = String(name ?? '').replace(/[^\w -]+/g, '').trim() || 'replay';
+  const two = (v) => String(v).padStart(2, '0');
+  const date = `${when.getFullYear()}-${two(when.getMonth() + 1)}-${two(when.getDate())}`;
+  const time = `${two(when.getHours())}-${two(when.getMinutes())}-${two(when.getSeconds())}`;
+  return `${base} ${date} ${time}.lcreplay.json`;
+}
+
 // A replay as a file's text, and back. Reading checks it's a replay,
 // and says if it was made under other rules (spec 12, What a replay
 // records): such a replay is refused.

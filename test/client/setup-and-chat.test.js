@@ -124,7 +124,7 @@ test('preferences: all four camera preferences off by default; saved and loaded;
 
 // Saved replays (spec 12, Saving a replay, Watching a replay).
 
-import { listReplays, saveReplay, deleteReplay, replayToText, replayFromText } from '../../src/client/core/replay-store.js';
+import { listReplays, saveReplay, deleteReplay, replayToText, replayFromText, replayFileName } from '../../src/client/core/replay-store.js';
 import { RULES_VERSION } from '../../src/rules/version.js';
 
 test('replays are saved under a name, listed, deleted, and saved to and read from files', () => {
@@ -144,4 +144,12 @@ test('replays are saved under a name, listed, deleted, and saved to and read fro
   assert.ok(!replayFromText('nonsense').ok);
   const other = replayFromText(replayToText({ ...replay, rulesVersion: RULES_VERSION + 1 }));
   assert.ok(!other.ok && /rules version/.test(other.reason), 'a replay from other rules is refused');
+});
+
+test('replay files are named with the date and time, so saves don\'t collide', () => {
+  const when = new Date(2026, 9, 28, 14, 32, 5);
+  assert.equal(replayFileName('Duel', when), 'Duel 2026-10-28 14-32-05.lcreplay.json');
+  assert.notEqual(replayFileName('Duel', when), replayFileName('Duel', new Date(2026, 9, 28, 14, 32, 6)));
+  assert.equal(replayFileName('a/b: "c"?', when), 'ab c 2026-10-28 14-32-05.lcreplay.json');
+  assert.equal(replayFileName('', when), 'replay 2026-10-28 14-32-05.lcreplay.json');
 });
