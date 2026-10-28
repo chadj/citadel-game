@@ -1415,7 +1415,30 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     - Now Charges within each other's blast count as one shot stopped.
     - Its own Charges near one of its launchers, by the line toward an
       enemy launcher in reach, count against it.
+    - Its own Charges whose blast reaches one of its units (within
+      about 90 px of the unit's edge) count by the harm they'd do: any
+      shot sets them off, and each in reach does 3, so enough of them
+      to destroy the unit count as losing it. More so where an enemy
+      launcher reaches the unit, or it's under attack. They give it no
+      cover, since they do it the harm of the shot they stop.
+    - Charges are weighed as its own aim would land them, short and
+      long as well as true, since a little short puts their blast on
+      what they guard. (A user's game: an easier computer's Charges
+      landed beside its Citadel, and the user set them off for the
+      kill.)
     - So the Interceptor is its everyday defense against shots.
+  - **Interceptors placed where they work** (from the same game: its
+    Citadel's three Interceptor aims were all where a new conduit may
+    not start, so only Charges were left to it):
+    - aimed 110 px out (the shortest throw is about 100 px; the old
+      75 px aim landed only by luck), on the enemy's side within
+      about 45°, where a new conduit from the launcher may start;
+    - counted as cover by the side they stand on. Tried against
+      Shells from 300 and 450 px: 75 to 150 px out on the enemy's side,
+      or 45° off it, an Interceptor caught all of them; 90° off, a
+      third to most; behind what it guards, none, since the shot comes
+      within its 180 px only as it lands;
+    - Barriers, whose dome guards from any side, go any way round.
   - **More attackers count for more:** each enemy launcher in reach
     past the first adds 0.6 of the first. Before, the count stopped
     at two.

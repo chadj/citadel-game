@@ -46,6 +46,12 @@ Most recent work:
   another) count as a "hit" for the aide's lines? Today burns along a
   conduit don't count; blast chains do.
 
+## Looked at, left for now
+- **How strong Interceptors are.** For 1 energy, one facing the enemy
+  catches every Shell from that side; one behind what it guards catches
+  none (D59 has the numbers). Changing that is spec wording; the user
+  chose to leave it as the spec has it (2026-10-27).
+
 ## Offered, not yet asked for
 - Choosing the map size in the online lobby.
 - Higher-resolution terrain.

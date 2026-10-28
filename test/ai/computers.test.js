@@ -352,9 +352,10 @@ function chargesBy(points) {
 
 test('Charges within each other\'s blast count as one shot stopped', () => {
   const none = chargesBy([]);
-  const one = chargesBy([[100, 0]]);
-  const three = chargesBy([[100, 0], [100, 50], [100, -50]]);
-  const apart = chargesBy([[100, 0], [-100, 0], [0, -100]]);
+  // 110 px out, just clear of their blast reaching it (about 105 px).
+  const one = chargesBy([[110, 0]]);
+  const three = chargesBy([[110, 0], [110, 50], [110, -50]]);
+  const apart = chargesBy([[110, 0], [-110, 0], [0, -110]]);
   assert.ok(one > none, 'one Charge covers it a little');
   // Two more beside it add less than the 2 energy they'd cost.
   assert.ok(three - one < 20, `three together ${three}, one ${one}`);
@@ -363,5 +364,13 @@ test('Charges within each other\'s blast count as one shot stopped', () => {
 
 test('its own Charges in the way of its fire at the enemy count against them', () => {
   // The same distance from the Citadel: toward the enemy Outpost, or away.
-  assert.ok(chargesBy([[0, 100]]) < chargesBy([[0, -100]]));
+  assert.ok(chargesBy([[0, 110]]) < chargesBy([[0, -110]]));
+});
+
+test('its own Charges close enough to blast its Citadel are worse than none', () => {
+  // As close as the shortest throw lands them: any enemy shot sets them
+  // off, and two of their blasts destroy it.
+  const none = chargesBy([]);
+  assert.ok(chargesBy([[95, 0]]) < none - 100, 'one, in reach of it');
+  assert.ok(chargesBy([[95, 0], [95, 40], [95, -40]]) < none - 300, 'three together, enough to destroy it');
 });

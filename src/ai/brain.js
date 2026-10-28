@@ -145,8 +145,9 @@ export class Brain {
     const p = this.personality;
     if (p.aim > 0 || p.power > 0) {
       for (const e of progress.scored.slice(0, ROBUST_TOP)) {
-        // A Pontoon's chance of landing is in its value already.
-        if (e.c.cross) continue;
+        // A Pontoon's chance of landing, and Charges' error, are in their
+        // values already.
+        if (e.c.cross || e.move.item === 'charges') continue;
         const vs = [e.v];
         for (let k = 0; k < 2; k++) {
           const v = this.score(belief, plan, this.stray(e.move, 0.7), e.c);
@@ -172,7 +173,26 @@ export class Brain {
   }
 
   score(belief, plan, move, c) {
-    return c.cross ? this.crossing(belief, plan, move) : this.playOut(belief, plan, move);
+    if (c.cross) return this.crossing(belief, plan, move);
+    if (move.item === 'charges') return this.spread(belief, plan, move);
+    return this.playOut(belief, plan, move);
+  }
+
+  // Charges go just clear of what they guard: a little short, and their
+  // blast reaches it (spec 09, Proximity Charges). So they count as their
+  // own aim would land them, short and long as well as true.
+  spread(belief, plan, move) {
+    const p = this.personality;
+    const vs = [this.playOut(belief, plan, move)];
+    if (vs[0] === null) return null;
+    if (p.power > 0) {
+      for (const w of [-0.7, 0.7]) {
+        const power = Math.max(0, Math.min(POWER_MAX, move.power + Math.round(w * p.power * POWER_MAX)));
+        const v = this.playOut(belief, plan, { ...move, power });
+        vs.push(v ?? this.passValue - itemCost('charges'));
+      }
+    }
+    return vs.reduce((a, b) => a + b, 0) / vs.length;
   }
 
   playOut(belief, plan, move) {

@@ -183,9 +183,19 @@ export function evaluate(game, plan) {
     if (heat > 0) threats = Math.max(0.5, threats);
     if (threats === 0) continue;
     let cover = 0;
-    for (const i of myInterceptors) if (i !== u && d2(size, i, u) <= INTERCEPTOR_RANGE ** 2) cover += 0.38;
+    // An Interceptor guards it from the side it stands on: full within
+    // about 45° of the nearest enemy launcher in reach, little at 90°, and
+    // nothing from behind.
+    let foe = null;
+    for (const l of enemyLaunchers) {
+      if (d2(size, l, u) <= (reachOf(l) + 60 * PX) ** 2 && (!foe || d2(size, l, u) < d2(size, foe, u))) foe = l;
+    }
+    for (const i of myInterceptors) if (i !== u && d2(size, i, u) <= INTERCEPTOR_RANGE ** 2) cover += 0.38 * facing(size, u, i, foe);
     for (const b of myBarriers) if (d2(size, b, u) <= (DOME_RADIUS - 20 * PX) ** 2) cover += 0.7;
-    for (const chain of chains) if (chain.some((c) => d2(size, c, u) <= (130 * PX) ** 2)) cover += 0.15;
+    // A group whose blast reaches it does it the harm of the shot it stops.
+    for (const chain of chains) {
+      if (chain.some((c) => d2(size, c, u) <= (130 * PX) ** 2) && !chain.some((c) => reaches(size, c, CHARGE_BLAST, u))) cover += 0.15;
+    }
     const pressure = threats <= 1 ? threats : 1 + MORE_LAUNCHERS * (threats - 1);
     let d = worth.get(u.id) * 0.13 * pressure * (1 + ALARM * heat) * (1 - Math.min(0.85, cover));
     if (u.citadel) {
@@ -209,14 +219,24 @@ export function evaluate(game, plan) {
   }
   // Worms eat into what they infect.
   for (const u of mine) if (u.worm) danger += worth.get(u.id) * 0.15;
-  // Its own Extractors and Charges beside its other units: their
-  // blasts hurt everyone.
+  // Its own Extractors beside its other units: their blasts hurt
+  // everyone.
   for (const e of mine) {
-    const blast = e.kind === 'extractor' ? EXTRACTOR_BLAST : e.kind === 'charge' ? CHARGE_BLAST : null;
-    if (!blast) continue;
-    for (const u of mine) {
-      if (u !== e && u.kind !== 'charge' && d2(size, e, u) <= blast.radius ** 2) danger += worth.get(u.id) * 0.06;
-    }
+    if (e.kind !== 'extractor') continue;
+    for (const u of mine) if (u !== e && u.kind !== 'charge' && reaches(size, e, EXTRACTOR_BLAST, u)) danger += worth.get(u.id) * 0.06;
+  }
+  // Its own Charges beside its other units: any shot sets a group of
+  // them off, and each one whose blast reaches a unit hurts it. Enough to
+  // destroy it counts as losing it, more so where enemy launchers reach
+  // (spec 09: keep them clear of its own buildings).
+  for (const u of mine) {
+    if (u.kind === 'charge' || u.kind === 'rover' || u.kind === 'skyProbe') continue;
+    let worst = 0;
+    for (const chain of chains) worst = Math.max(worst, chain.filter((c) => reaches(size, c, CHARGE_BLAST, u)).length * CHARGE_BLAST.damage);
+    if (worst === 0) continue;
+    const exposed = plan.attacked.has(u.id) || enemyLaunchers.some((l) => d2(size, l, u) <= (reachOf(l) + 60 * PX) ** 2) ? 0.6 : 0.2;
+    const share = worst >= u.armor ? 1 : worst / UNIT_KINDS[u.kind].armor;
+    danger += worth.get(u.id) * share * exposed;
   }
   value -= danger * w.defense;
 
@@ -268,6 +288,27 @@ export function evaluate(game, plan) {
     }
   }
   return value;
+}
+
+// How well a guard at `g` faces a threat from `foe` to a unit `u`: 1
+// within about 45° of the way the threat comes, falling to none from
+// behind; 1 if the threat's way is unknown, or the guard stands on it.
+function facing(size, u, g, foe) {
+  if (!foe) return 1;
+  const gx = delta(u.x, g.x, size);
+  const gy = delta(u.y, g.y, size);
+  const fx = delta(u.x, foe.x, size);
+  const fy = delta(u.y, foe.y, size);
+  const lg = Math.hypot(gx, gy);
+  if (lg < 40 * PX) return 1;
+  const cos = (gx * fx + gy * fy) / (lg * (Math.hypot(fx, fy) || 1));
+  return Math.max(0, Math.min(1, (cos + 0.2) / 0.9));
+}
+
+// Whether a blast from a unit reaches another: within its radius of the
+// other's edge, as the rules measure it, leaving out height.
+function reaches(size, from, blast, u) {
+  return d2(size, from, u) <= (blast.radius + UNIT_KINDS[u.kind].radius) ** 2;
 }
 
 // Its Charges in groups that go off together: each within the blast of

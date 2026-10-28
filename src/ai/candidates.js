@@ -12,7 +12,7 @@ import { tileIndex, tileCenter } from '../rules/terrain/terrain.js';
 import { wrap } from '../rules/math/wrap.js';
 import { ITEMS, itemCost, canLaunch } from '../rules/items.js';
 import { UNIT_KINDS, isLauncher, isWorking } from '../rules/units.js';
-import { isGone } from '../rules/conduits.js';
+import { isGone, conduitWarning } from '../rules/conduits.js';
 import { solve, bearing, distance } from './aim.js';
 import { reachOf } from './value.js';
 
@@ -79,9 +79,16 @@ export function candidates(game, plan, env, random) {
         const foe = nearest(size, u, enemyLaunchers);
         const a = foe ? (bearing(size, u, foe) * Math.PI) / 180 : 0;
         const ring = (d, offs) => offs.map((o) => ({ x: u.x + Math.cos(a + o) * d, y: u.y + Math.sin(a + o) * d }));
-        if (can(l, 'interceptor')) for (const p of ring(75 * PX, [0, 1.6, -1.6])) aimAt(l, 'interceptor', p);
-        // Its dome covers 160 px; the shortest throw is about 100 px.
-        if (can(l, 'barrier')) for (const p of ring(110 * PX, [0, 2.4, -2.4])) aimAt(l, 'barrier', p);
+        // The shortest throw is about 100 px, and a new conduit from the
+        // launcher may start only clear of its others (spec 05). An
+        // Interceptor catches shots coming in only on the enemy's side of
+        // what it guards, within about 45°; a Barrier's dome, 160 px
+        // across, guards it from any side.
+        const free = (p) => conduitWarning(s, l, Math.round(bearing(size, l, p)), size).length === 0;
+        const facing = ring(110 * PX, [0, 0.4, -0.4, 0.8, -0.8]).filter(free).slice(0, 3);
+        const around = ring(110 * PX, [0, 0.8, -0.8, 1.6, -1.6, 2.4, -2.4, Math.PI]).filter(free).slice(0, 3);
+        if (can(l, 'interceptor')) for (const p of facing) aimAt(l, 'interceptor', p);
+        if (can(l, 'barrier')) for (const p of around) aimAt(l, 'barrier', p);
         if (can(l, 'charges')) aimAt(l, 'charges', ring(120 * PX, [0])[0]);
       }
       if (can(l, 'skyProbe') && plan.fog && (plan.knownEnemies < 4 || plan.leads.length > 0)) {
