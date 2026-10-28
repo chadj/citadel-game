@@ -80,26 +80,61 @@ export class SummaryScene extends BaseScene {
 
   layout() {
     const { width, height } = this.view;
+    const narrow = width < 720;
     let y = 20;
     this.heading.setPosition(width / 2, y);
     y += 60;
-    const nameW = Math.min(150, width * 0.25);
-    const colW = Math.min(90, (width - nameW - 24) / COLUMNS.length);
-    const x0 = Math.max(12, (width - nameW - colW * COLUMNS.length) / 2);
-    this.header.forEach((h, k) => h.setPosition(x0 + nameW + colW * k + colW / 2, y).setWordWrapWidth(colW - 4));
-    y += 44;
-    for (const r of this.rows) {
-      r.name.setPosition(x0, y);
-      r.values.forEach((v, k) => v.setPosition(x0 + nameW + colW * k + colW / 2, y));
-      y += 30;
+    let x0;
+    if (narrow) {
+      // On a phone the table turns on its side: a row for each figure and
+      // a column for each player, so it fits however many play.
+      const w = width - 24;
+      x0 = 12;
+      const labelW = Math.min(130, w * 0.4);
+      const colW = (w - labelW) / this.rows.length;
+      const colX = (i) => x0 + labelW + colW * i + colW / 2;
+      let tallest = 0;
+      this.rows.forEach((r, i) => {
+        r.name.setOrigin(0.5, 0).setAlign('center').setWordWrapWidth(colW - 6).setPosition(colX(i), y);
+        tallest = Math.max(tallest, r.name.height);
+      });
+      y += tallest + 12;
+      this.header.forEach((h, k) => {
+        h.setOrigin(0, 0).setAlign('left').setWordWrapWidth(labelW - 8).setPosition(x0, y + 2);
+        this.rows.forEach((r, i) => r.values[k].setPosition(colX(i), y));
+        y += Math.max(28, h.height + 10);
+      });
+    } else {
+      const nameW = Math.min(150, width * 0.25);
+      const colW = Math.min(90, (width - nameW - 24) / COLUMNS.length);
+      x0 = Math.max(12, (width - nameW - colW * COLUMNS.length) / 2);
+      this.header.forEach((h, k) => h.setOrigin(0.5, 0).setAlign('center').setWordWrapWidth(colW - 4).setPosition(x0 + nameW + colW * k + colW / 2, y));
+      y += 44;
+      for (const r of this.rows) {
+        r.name.setOrigin(0, 0).setAlign('left').setWordWrapWidth(null).setPosition(x0, y);
+        r.values.forEach((v, k) => v.setPosition(x0 + nameW + colW * k + colW / 2, y));
+        y += 30;
+      }
     }
     y += 24;
     this.saveLabel.setPosition(x0, y);
     y += 22;
     this.nameField?.setPosition(x0, y);
-    this.saveBtn?.setSize(80, 34).setPosition(x0 + 250, y);
-    this.fileBtn.setSize(120, 34).setPosition(x0 + (this.saveBtn ? 340 : 0), y);
-    this.status.setPosition(x0, y + 44);
+    if (narrow) {
+      // The buttons go under the name on a phone.
+      const w = width - 24;
+      if (this.nameField) {
+        this.nameField.input.style.width = `${w - 18}px`;
+        y += 46;
+      }
+      this.saveBtn?.setSize(80, 34).setPosition(x0, y);
+      this.fileBtn.setSize(120, 34).setPosition(x0 + (this.saveBtn ? 90 : 0), y);
+    } else {
+      if (this.nameField) this.nameField.input.style.width = '220px';
+      this.saveBtn?.setSize(80, 34).setPosition(x0 + 250, y);
+      this.fileBtn.setSize(120, 34).setPosition(x0 + (this.saveBtn ? 340 : 0), y);
+    }
+    this.status.setPosition(x0, y + 44).setWordWrapWidth(width - 24);
     this.back.setSize(140, 42).setPosition(width / 2 - 70, height - 60);
   }
 }

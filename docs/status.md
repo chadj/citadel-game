@@ -33,6 +33,8 @@ Most recent work:
   chat in a panel at the top, and counts messages not yet read.
 - On a phone's online lobby, each game is listed on three lines, and
   hosting (now just under the list) fits the screen.
+- On a phone's game summary, the table turns on its side (a column for
+  each player), and the save buttons go under the replay's name.
 - Hillier maps (D61): the Terrain steps raise more land and more
   Mountains, measured on the finished map; the built-in maps were
   regenerated and the two hand-drawn ones redrawn.
