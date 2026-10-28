@@ -3,7 +3,8 @@
 
 // Saved replays (spec 12, Saving a replay, Watching a replay): as many
 // as the player likes, each with a name, kept in the browser's storage.
-// A replay can also be saved to a file and opened from one.
+// A replay can also be saved to a file and opened from one; the file's
+// format is in docs/formats.md (Replay files).
 
 import { RULES_VERSION } from '../../rules/version.js';
 

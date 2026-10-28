@@ -71,6 +71,8 @@ negotiable.
   `src/server`.
 - Rules changes that alter play raise `RULES_VERSION`
   (`src/rules/version.js`), since replays record it.
+- `docs/formats.md` describes replay files, setups, moves and map
+  data. Change it along with any of them.
 - Commit straight to `main`; no feature branches.
 - License: AGPL-3.0-or-later (`LICENSE`), chosen for now; the user may
   change it later. Every source file carries the header:

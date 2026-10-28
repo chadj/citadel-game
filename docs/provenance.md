@@ -4,7 +4,8 @@ For each system built: the spec sections it implements, and the
 entries in `decisions.md` it relies on.
 
 ## Rules version
-- **Files:** `src/rules/version.js`
+- **Files:** `src/rules/version.js`; when to raise it is in
+  `docs/formats.md` (When old files stop working).
 - **Spec:** 12 Replays (a replay records the rules' version).
 - **Decisions:** none.
 
@@ -42,7 +43,8 @@ entries in `decisions.md` it relies on.
 ## Maps and terrain
 - **Files:** `src/rules/constants.js` (map and terrain values),
   `src/rules/terrain/planets.js`, `src/rules/terrain/map.js`,
-  `src/rules/terrain/terrain.js`
+  `src/rules/terrain/terrain.js`; the map data format is described in
+  `docs/formats.md`.
 - **Spec:** 02 Shape and size, Planets, Terrain, Levels, Slopes, Water,
   Landforms (corners, cliff pieces, diagonal cliffs, smooth joins,
   water forms, painted craters as map data), Pontoons (the terrain
@@ -96,7 +98,8 @@ entries in `decisions.md` it relies on.
 - **Decisions:** D1, D2, D18, D19, D28, D30.
 
 ## Replays
-- **Files:** `src/rules/replay.js`
+- **Files:** `src/rules/replay.js`; the file format, setup and moves
+  are described in `docs/formats.md`.
 - **Spec:** 12 Replays (what a replay records, refusing other rules
   versions), Determinism checks 1 and 3.
 - **Decisions:** D30.

@@ -7,7 +7,8 @@
 // for each number of players and team layout (decision D16): the
 // layout is the sizes of the teams of two or more, smallest first,
 // joined with '+' ('' for no teams). Each group is one team's
-// positions; a player on no team gets a group of one.
+// positions; a player on no team gets a group of one. See
+// docs/formats.md (Maps in the source).
 
 import { HANDMADE } from './handmade.js';
 import { GENERATED } from './generated.js';

@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Chad Johnson
 
 // The map format and its checks (spec 02, Landforms; decisions D26,
-// D55). How maps are stored is up to us. A map is plain data:
+// D55). How maps are stored is up to us; docs/formats.md (Map data)
+// describes the format in full. A map is plain data:
 //
 //   {
 //     name: 'Twin Lakes',

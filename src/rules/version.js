@@ -2,5 +2,6 @@
 // Copyright (C) 2026 Chad Johnson
 
 // The rules' version, saved in every replay (spec 12, Replays). Bump it
-// whenever a change could make a recorded game play back differently.
+// whenever a change could make a recorded game play back differently
+// (docs/formats.md, When old files stop working).
 export const RULES_VERSION = 3;

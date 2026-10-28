@@ -98,6 +98,7 @@ export function createGame(setup) {
 //   { type: 'pass', player }
 //   { type: 'timeout', player }
 //   { type: 'disconnect', player }
+// (docs/formats.md, Moves.)
 export function applyMove(game, move) {
   const s = game.state;
   if (s.phase === 'over') return refuse('the game is over');

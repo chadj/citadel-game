@@ -5,6 +5,8 @@
 // with disconnects among them. Playing one back runs the game again.
 //
 //   { rulesVersion, setup, moves: [...] }
+//
+// docs/formats.md describes replay files, the setup and the moves.
 
 import { RULES_VERSION } from './version.js';
 import { createGame, applyMove, settle } from './game.js';

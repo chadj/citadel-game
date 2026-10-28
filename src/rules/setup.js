@@ -16,7 +16,8 @@
 //     fog: true,
 //   }
 //
-// `team` is a name, or null for no team.
+// `team` is a name, or null for no team. docs/formats.md (Setup)
+// describes every field.
 
 import {
   MIN_PLAYERS, MAX_PLAYERS, MAX_COMPUTERS, FACTIONS, COLORS, CLOCK_SETTINGS,

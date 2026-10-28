@@ -9,7 +9,8 @@ browser game (hot seat, replays, options and key rebinding, the
 narrow-screen layout), computer players, sound and the aide, fog of
 war, and online play (lobby, setup, lockstep games, taking back a seat
 after a dropped connection). `docs/provenance.md` says what each part
-implements; `docs/decisions.md` (D1 to D61) records every choice.
+implements; `docs/decisions.md` (D1 to D61) records every choice;
+`docs/formats.md` describes replay files and map data.
 
 Most recent work:
 - Landforms (D55): corner-level maps with cliffs, channels, ponds and
@@ -30,6 +31,8 @@ Most recent work:
 - Hillier maps (D61): the Terrain steps raise more land and more
   Mountains, measured on the finished map; the built-in maps were
   regenerated and the two hand-drawn ones redrawn.
+- `docs/formats.md`: replay files, setups, moves and map data, and
+  when old replays stop playing back.
 
 ## Next: M11, Polish
 - **AI speed on large maps.** Thinking peaks around 4 to 7 s on

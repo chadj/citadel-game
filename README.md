@@ -53,7 +53,9 @@ need a browser.
   the same game.
 - **Online play** is lockstep: players send only their moves, every
   machine plays them, and the server checks that their states agree.
-- **A replay** is the game's settings plus its list of moves.
+- **A replay** is the game's settings plus its list of moves. Replay
+  files and map data are described in
+  [`docs/formats.md`](docs/formats.md).
 - **Phaser** (`src/client`) handles drawing, input, the camera, the
   interface and sound.
 
@@ -72,7 +74,8 @@ need a browser.
 `spec/` is the complete description of how the game behaves, and the
 only source of truth for building it. Choices the spec leaves open are
 recorded in `docs/decisions.md`, and `docs/provenance.md` says which
-spec sections and decisions each part of the code implements. Every
+spec sections and decisions each part of the code implements.
+`docs/formats.md` describes the replay files and map data. Every
 image, sound and map is listed with its source and license in
 `ASSETS.md`.
 
