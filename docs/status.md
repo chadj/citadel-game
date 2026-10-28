@@ -27,7 +27,10 @@ Most recent work:
   they can afford them, and firing back (D59).
 - Installing to a phone's or tablet's home screen, full screen and
   clear of notches (D60; asked for by the user, not from the spec).
-- On a phone's setup screen, a line between seats.
+- On a phone's setup screen, a line between seats; empty seats take one
+  row; on a short screen the setup scrolls under a bar holding Back and
+  Start (Ready, online). Online, a Chat button in that bar opens the
+  chat in a panel at the top, and counts messages not yet read.
 - Hillier maps (D61): the Terrain steps raise more land and more
   Mountains, measured on the finished map; the built-in maps were
   regenerated and the two hand-drawn ones redrawn.

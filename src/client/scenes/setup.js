@@ -6,7 +6,7 @@
 // this screen in turn (hot seat); computers can join them.
 
 import { BaseScene } from './base.js';
-import { Button, label, textField, UI, panel } from '../ui/kit.js';
+import { Button, label, textField, UI, panel, DPR } from '../ui/kit.js';
 import { MAPS } from '../core/maps.js';
 import { rollSetup, computerLooks, claimColor, generatedMap, setupProblem } from '../core/newgame.js';
 import { PERSONALITIES } from '../core/computers.js';
@@ -43,6 +43,7 @@ export class SetupScene extends BaseScene {
   create(data = {}) {
     this.audio?.music.play('menu');
     this.online = data.online ?? null;
+    this.scrollY = 0;
     const prefs = this.prefs;
     const host = prefs.host;
     // The maps, then a generated map at the end of the list.
@@ -81,20 +82,55 @@ export class SetupScene extends BaseScene {
       },
     }));
     this.problem = label(this, '', { size: 13, color: UI.warn, wrap: 400 });
-    this.start = new Button(this, 'Start', { size: 17, onClick: () => this.startGame() });
-    this.back = new Button(this, 'Back', { size: 15, onClick: () => this.goBack() });
+    // Back and Start stay in a bar along the bottom; on a short screen the
+    // rest scrolls under it.
+    this.bar = this.add.rectangle(0, 0, 10, 10, 0x0b0f14).setOrigin(0, 0).setStrokeStyle(1, UI.panelEdge).setDepth(10);
+    this.start = new Button(this, 'Start', { size: 17, onClick: () => this.startGame() }).setDepth(11);
+    this.back = new Button(this, 'Back', { size: 15, onClick: () => this.goBack() }).setDepth(11);
     if (this.online) this.goOnline();
     else this.refresh();
+    this.scrolling();
     this.autoLayout();
+  }
+
+  // Scrolling, with the mouse wheel or by dragging the screen.
+  scrolling() {
+    const scrollBy = (dy) => {
+      const y = Math.max(0, Math.min(this.maxScroll ?? 0, this.scrollY + dy));
+      if (y !== this.scrollY) {
+        this.scrollY = y;
+        this.layout();
+      }
+    };
+    this.input.on('wheel', (p, over, dx, dy) => scrollBy(dy));
+    this.input.on('pointerdown', (p) => {
+      this.dragged = false;
+      this.dragFrom = p.y;
+    });
+    this.input.on('pointermove', (p) => {
+      if (!p.isDown || !this.maxScroll) return;
+      // A small slip of the finger is still a tap.
+      if (!this.dragged && Math.abs(p.y - this.dragFrom) / DPR < 8) return;
+      this.dragged = true;
+      scrollBy((p.prevPosition.y - p.y) / DPR);
+    });
   }
 
   // Online ----------------------------------------------------------------
 
   goOnline() {
     const { net } = this.online;
-    this.ready = new Button(this, 'Ready', { size: 15, onClick: () => net.send('ready', { ready: !this.mySeat.ready }) });
+    this.ready = new Button(this, 'Ready', { size: 15, onClick: () => net.send('ready', { ready: !this.mySeat.ready }) }).setDepth(11);
     this.chatLog = [];
-    this.chatText = label(this, '', { size: 13, wrap: 400 });
+    this.chatText = label(this, '', { size: 13, wrap: 400 }).setDepth(21);
+    // On a phone the chat has a panel of its own, opened from the bar, so
+    // what's said doesn't push the setup down.
+    this.chatOpen = false;
+    this.unread = 0;
+    this.chatButton = new Button(this, '', { size: 15, onClick: () => this.showChat(!this.chatOpen) }).setDepth(11);
+    this.chatBox = panel(this, 0.97).setDepth(20).setInteractive();
+    this.chatTitle = label(this, 'Chat', { size: 15, bold: true }).setDepth(21);
+    this.chatClose = new Button(this, 'Close', { size: 13, onClick: () => this.showChat(false) }).setDepth(21);
     this.chatField = textField(this, '', {
       maxLength: 120,
       width: 260,
@@ -114,6 +150,8 @@ export class SetupScene extends BaseScene {
         this.chatLog = this.chatLog.slice(-6);
         this.chatText.setText(this.chatLog.join('\n'));
         this.uiSound('ui.chat');
+        if (this.chatDocked && !this.chatOpen) this.unread++;
+        this.layout();
       }),
       net.on('error', (m) => this.problem.setText(m.reason)),
       net.on('closed', (m) => this.scene.start('lobby', { message: m.reason })),
@@ -125,6 +163,12 @@ export class SetupScene extends BaseScene {
     ];
     this.events.once('shutdown', () => offs.forEach((off) => off()));
     this.fromRoom();
+  }
+
+  showChat(open) {
+    this.chatOpen = open;
+    if (open) this.unread = 0;
+    this.layout();
   }
 
   get isHost() {
@@ -353,17 +397,23 @@ export class SetupScene extends BaseScene {
     const narrow = width < 720;
     const w = Math.min(760, width - 24);
     const x0 = (width - w) / 2;
-    let y = 16;
+    const barTop = height - 72;
+    let y = 16 - this.scrollY;
     this.heading.setPosition(width / 2, y);
     y += 50;
-    const rowH = narrow ? 88 : 40;
-    this.box.setPosition(x0 - 6, y - 6).setSize(w + 12, rowH * MAX_PLAYERS + 8);
+    // On a phone a seat in use takes two rows; an empty one, just one.
+    const rowHs = this.seats.map((s) => (!narrow ? 40 : s.kind === 'empty' || s.kind === 'open' ? 50 : 88));
+    this.box.setPosition(x0 - 6, y - 6).setSize(w + 12, rowHs.reduce((a, b) => a + b) + 8);
     const colW = narrow ? (w - 8) / 3 : (w - 30) / 5;
+    // The page's own text fields sit over the game, so they're hidden
+    // when scrolled under the bar or off the top.
+    const clip = (field, fy, want) => field.setVisible(want && fy >= 0 && fy + 34 <= barTop);
     this.rows.forEach((row, i) => {
       const h = 32;
       row.kind.setSize(colW, h).setPosition(x0, y);
       row.name.setPosition(x0 + colW + 6, y);
       row.name.input.style.width = `${colW - 22}px`;
+      clip(row.name, y, this.seats[i].kind === 'human' && !this.online);
       row.personality.setSize(colW, h).setPosition(x0 + colW + 6, y);
       const y2 = narrow ? y + 38 : y;
       const x2 = narrow ? x0 : x0 + (colW + 6) * 2;
@@ -371,7 +421,7 @@ export class SetupScene extends BaseScene {
       row.color.setSize(colW - 14, h).setPosition(x2 + colW + 6, y2);
       row.swatch.setPosition(x2 + colW + 6 + colW - 12, y2 + 4).setSize(10, h - 8);
       row.team.setSize(colW, h).setPosition(x2 + (colW + 6) * 2, y2);
-      y += rowH;
+      y += rowHs[i];
       const divider = this.dividers[i];
       if (divider) divider.setVisible(narrow).setPosition(x0, y - 9).setSize(w, 1);
     });
@@ -392,13 +442,55 @@ export class SetupScene extends BaseScene {
       y += Math.ceil(this.controls.length / cols) * 38 + 6;
     }
     this.problem.setPosition(x0, y).setWordWrapWidth(w);
+    y += this.problem.text ? this.problem.height + 8 : 0;
+    // On a phone the bar's buttons are narrower, to make room for Chat.
+    const backW = narrow ? 90 : 110;
+    const startW = narrow ? 120 : 160;
     if (this.online) {
-      y += 30;
-      this.chatText.setPosition(x0, y).setWordWrapWidth(w);
-      this.chatField.setPosition(x0, Math.max(y + 110, height - 110));
-      this.ready.setSize(160, 44).setPosition(width - 16 - 160, height - 60);
+      this.chatDocked = narrow;
+      this.chatButton.setVisible(narrow).setText(this.unread ? `Chat (${this.unread})` : 'Chat');
+      this.chatButton.setActive(this.chatOpen);
+      const open = narrow && this.chatOpen;
+      for (const o of [this.chatBox, this.chatTitle]) o.setVisible(open);
+      this.chatClose.setVisible(open);
+      this.chatText.setVisible(open || !narrow);
+      if (narrow) {
+        // The panel sits at the top, clear of the phone's keyboard.
+        const gap = width - 32 - backW - startW;
+        const cw = Math.min(110, gap - 16);
+        this.chatButton.setSize(cw, 44).setPosition(16 + backW + (gap - cw) / 2, height - 60);
+        const px = 8;
+        const pw = width - 16;
+        this.chatTitle.setPosition(px + 12, 20);
+        this.chatClose.setSize(80, 32).setPosition(px + pw - 12 - 80, 14);
+        this.chatText.setPosition(px + 12, 56).setWordWrapWidth(pw - 24);
+        const fy = 56 + (this.chatLog.length ? this.chatText.height + 10 : 0);
+        this.chatField.setVisible(open).setPosition(px + 12, fy);
+        this.chatField.input.style.width = `${pw - 24 - 18}px`;
+        this.chatBox.setPosition(px, 8).setSize(pw, fy + 34 + 12 - 8);
+      } else {
+        y += 8;
+        this.chatText.setPosition(x0, y).setWordWrapWidth(w);
+        // The chat field comes after what's been said, or just above the
+        // bar when there's room.
+        const said = this.chatLog.length ? this.chatText.height + 8 : 0;
+        const fy = Math.max(y + said, barTop - 46 - this.scrollY);
+        clip(this.chatField, fy, true);
+        this.chatField.setPosition(x0, fy);
+        this.chatField.input.style.width = '260px';
+        y = fy + 34;
+      }
+      this.ready.setSize(startW, 44).setPosition(width - 16 - startW, height - 60);
     }
-    this.start.setSize(160, 44).setPosition(width - 16 - 160, height - 60);
-    this.back.setSize(110, 44).setPosition(16, height - 60);
+    this.maxScroll = Math.max(0, y + 12 + this.scrollY - barTop);
+    if (this.scrollY > this.maxScroll) {
+      // Less to show than before (a seat emptied, a screen grown).
+      this.scrollY = this.maxScroll;
+      this.layout();
+      return;
+    }
+    this.bar.setPosition(-1, barTop).setSize(width + 2, height - barTop + 1);
+    this.start.setSize(startW, 44).setPosition(width - 16 - startW, height - 60);
+    this.back.setSize(backW, 44).setPosition(16, height - 60);
   }
 }

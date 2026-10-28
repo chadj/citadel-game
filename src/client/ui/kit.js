@@ -89,7 +89,9 @@ export class Button {
       const was = this.down;
       this.down = false;
       this.paint();
-      if (!was || !this.enabled) return;
+      // A screen being dragged to scroll sets `scene.dragged`: letting go
+      // then isn't a click.
+      if (!was || !this.enabled || scene.dragged) return;
       if (this.onClick && scene.menuSounds) scene.uiSound?.('ui.click');
       this.onUp?.(true);
       this.onClick?.();
