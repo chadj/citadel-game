@@ -141,7 +141,8 @@ entries in `decisions.md` it relies on.
 - **Decisions:** D10, D11, D17, D37.
 
 ## The browser client (hot seat, computers' seats, replays)
-- **Files:** `index.html`, `tools/serve.js`, `src/client/**`
+- **Files:** `index.html`, `manifest.webmanifest`, `tools/serve.js`,
+  `src/client/**`, `assets/icons/*` (drawn by `tools/make-icons.js`)
   - plain, tested in Node: `core/aim.js`, `core/meter.js`,
     `core/camera.js`, `core/view.js`, `core/session.js`,
     `core/controls.js`, `core/chat.js`, `core/stats.js`,
@@ -166,7 +167,8 @@ entries in `decisions.md` it relies on.
   game starts, Replays; Appendix A 01 (the displayed aim and meter).
 - **Decisions:** D16, D22, D28, D38, D39, D40, D41, D53, D54, D55
   (the terrain's looks and painted craters, in `render/terrain-art.js`),
-  D57 (the order of play doesn't show who has passed).
+  D57 (the order of play doesn't show who has passed), D60 (installing
+  to a home screen; not from the spec).
 
 ## Computer players
 - **Files:** `src/ai/personalities.js`, `src/ai/belief.js`,

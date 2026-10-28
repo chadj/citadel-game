@@ -1454,3 +1454,33 @@ on 2026-10-25. Exact numbers chosen during tuning go in
       from up to 18° and 54% off. From one Battery shot at 600 px,
       the hardest computer's guess was a median 49 px off and the
       easiest's 89 px; after four shots, 25 px and 56 px.
+
+## D60. Installing the game to a home screen
+- **Date:** 2026-10-28
+- **Spec:** none. A feature the user asked for, not from the spec;
+  10 Layout is the nearest chapter.
+- **Asked for:** the game can be installed to a phone's or tablet's
+  home screen ("Add to Home Screen"). Opened from there it fills the
+  whole screen without the browser's bars, and keeps clear of notches,
+  rounded corners and the home indicator. On iPhone, Safari can't make
+  a page element full screen, so installing is the way to get full
+  screen there.
+- **Choice:**
+  - A web app manifest (`manifest.webmanifest`) with `display:
+    fullscreen`, the game's dark background as its colours, and our
+    own icons. On iPhone and iPad, the Apple home-screen tags too, with
+    the status bar see-through over the game's background.
+  - The page runs edge to edge (`viewport-fit=cover`), and the game's
+    element keeps to the screen's safe area (`env(safe-area-inset-*)`).
+    The game sizes itself to that element, not the window, and follows
+    it as it changes (turning the phone moves the safe area). Outside
+    the safe area is the plain background. In an ordinary browser tab
+    the safe area is the whole page, so nothing changes there.
+  - No offline mode (no service worker): the game is still loaded from
+    the server, which online play needs anyway.
+  - The icons are drawn by `tools/make-icons.js`: a Citadel's dome and
+    spire on a moon's horizon, kept inside the middle 80% so phones
+    that cut icons to a circle keep all of it.
+- **Limits:** Android's Chrome installs a full-screen app only from
+  https or `localhost`; from a plain http address on the network,
+  "Add to Home screen" makes a shortcut that opens in the browser.

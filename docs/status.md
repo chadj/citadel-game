@@ -9,7 +9,7 @@ browser game (hot seat, replays, options and key rebinding, the
 narrow-screen layout), computer players, sound and the aide, fog of
 war, and online play (lobby, setup, lockstep games, taking back a seat
 after a dropped connection). `docs/provenance.md` says what each part
-implements; `docs/decisions.md` (D1 to D59) records every choice.
+implements; `docs/decisions.md` (D1 to D60) records every choice.
 
 Most recent work:
 - Landforms (D55): corner-level maps with cliffs, channels, ponds and
@@ -24,6 +24,8 @@ Most recent work:
 - Computers watch every turn, find attackers in the fog from what
   they see, and answer attacks: Interceptors first, Barriers when
   they can afford them, and firing back (D59).
+- Installing to a phone's or tablet's home screen, full screen and
+  clear of notches (D60; asked for by the user, not from the spec).
 - On a phone's setup screen, a line between seats.
 
 ## Next: M11, Polish
@@ -59,7 +61,7 @@ Most recent work:
 
 ## Waiting on the user
 - `docs/spec-changes.md` has proposed spec wording for D38, D42, D53,
-  D55, D56 and D59. The user applies it to `spec/`.
+  D55, D56, D59 and D60. The user applies it to `spec/`.
 
 ## Checking work by hand
 - `npm start`, then open http://localhost:8080. For an online game,

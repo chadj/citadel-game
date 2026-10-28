@@ -19,6 +19,7 @@ const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
@@ -26,7 +27,7 @@ const TYPES = {
   '.wav': 'audio/wav',
 };
 // Only the game's own files are served.
-const ALLOWED = ['index.html', 'src', join('node_modules', 'phaser', 'dist'), 'assets'];
+const ALLOWED = ['index.html', 'manifest.webmanifest', 'src', join('node_modules', 'phaser', 'dist'), 'assets'];
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');

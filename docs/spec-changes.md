@@ -68,3 +68,12 @@ In "Protecting the Citadel", after "Don't make it stand out." add:
 
 > Once the Citadel is under attack, the enemy knows where it is, and
 > this no longer holds back its defenses.
+
+## 10 — Layout: installing to a home screen (D60)
+A feature the user asked for, not yet in the spec. At the end of
+"Layout", add:
+
+> The game can be installed to a phone's or tablet's home screen.
+> Opened from there, it fills the whole screen without the browser's
+> bars, and keeps its parts clear of notches, rounded corners and the
+> home indicator.

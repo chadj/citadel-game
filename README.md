@@ -30,6 +30,11 @@ Then open http://localhost:8080. The same server hosts online games:
 other players on your network open the same address with your machine's
 name or IP in place of `localhost`. Set `PORT` to use another port.
 
+On a phone or tablet, use the browser's "Add to Home Screen" to install
+the game; opened from there it fills the screen. Android's Chrome does
+this only from https or `localhost`; from a plain http address it adds
+a shortcut that opens in the browser.
+
 ## Tests
 
 ```sh

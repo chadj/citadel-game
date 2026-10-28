@@ -4,11 +4,27 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Lunar Citadel</title>
+  <!-- Installable to a phone's or tablet's home screen, and full screen
+       when opened from there (decision D60). -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#0b0f14">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Lunar Citadel">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
-    html, body { margin: 0; padding: 0; height: 100%; background: #0b0f14; overflow: hidden; }
-    #game { width: 100vw; height: 100vh; touch-action: none; }
+    html, body { margin: 0; padding: 0; height: 100%; background: #0b0f14; overflow: hidden; overscroll-behavior: none; }
+    /* The page runs under notches, rounded corners and the home
+       indicator; the game keeps to the safe area inside them. */
+    #game {
+      position: fixed; touch-action: none;
+      top: env(safe-area-inset-top, 0px); right: env(safe-area-inset-right, 0px);
+      bottom: env(safe-area-inset-bottom, 0px); left: env(safe-area-inset-left, 0px);
+    }
   </style>
   <script type="importmap">
     { "imports": { "phaser": "./node_modules/phaser/dist/phaser.esm.js" } }

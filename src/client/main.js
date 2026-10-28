@@ -19,12 +19,17 @@ import { ReplaysScene } from './scenes/replays.js';
 import { LobbyScene } from './scenes/lobby.js';
 import { DPR } from './ui/kit.js';
 
+// The game fills its element, which index.html keeps to the screen's
+// safe area (clear of notches and the home indicator).
+const holder = document.getElementById('game');
+const size = () => [Math.max(1, holder.clientWidth) * DPR, Math.max(1, holder.clientHeight) * DPR];
+
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   backgroundColor: '#0b0f14',
   // Drawn at the screen's own resolution, shown at the window's size.
-  scale: { mode: Phaser.Scale.NONE, width: window.innerWidth * DPR, height: window.innerHeight * DPR, zoom: 1 / DPR },
+  scale: { mode: Phaser.Scale.NONE, width: size()[0], height: size()[1], zoom: 1 / DPR },
   dom: { createContainer: true },
   disableContextMenu: true,
   input: { activePointers: 3 },
@@ -33,7 +38,8 @@ const game = new Phaser.Game({
   scene: [MenuScene, OptionsScene, SetupScene, GameScene, SummaryScene, ReplaysScene, LobbyScene],
 });
 
-window.addEventListener('resize', () => game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR));
+// Turning the phone moves the safe area as well as resizing the window.
+new ResizeObserver(() => game.scale.resize(...size())).observe(holder);
 
 const prefs = loadPrefs();
 game.registry.set('prefs', prefs);
