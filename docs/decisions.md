@@ -1544,8 +1544,9 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     left, as when everyone drops out), the server writes its replay as
     a replay file, the same as a player saves from the summary
     (docs/formats.md), so the game's Replays screen opens it.
-  - Games that never finish aren't kept: one still going when the
-    server stops, and setups that never start.
+  - Setups that never start aren't kept. A game still going when the
+    server stops carries on when it starts again (D63), and is kept
+    when it finishes.
   - The files go in `replays/` in the project (left out of git), or the
     folder `REPLAY_DIR` names. They aren't served to players.
   - A file is named after the game, or its players ("Ana vs Bo") if the
@@ -1556,3 +1557,52 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     game (most are tens of kilobytes; a generated map adds its terrain).
   - Writing a file can't stop or hold up the game: a failure is
     logged.
+
+## D63. Online games survive the server restarting
+- **Date:** 2026-10-28
+- **Spec:** none directly. 12 Dropping out and Rejoining describe a
+  player going away, not the server; this follows them for the server
+  coming back. 12 Every machine plays the same game (a game is its
+  setup and moves), What a replay records (the rules' version).
+- **Asked for:** multiplayer games survive a server restart, with the
+  defaults offered: the turn under way starts again with its full shot
+  clock; setups not yet started send their players back to the lobby;
+  a game from other rules ends and its replay is kept; the games are
+  kept in a `games/` folder.
+- **Choice:**
+  - Each game under way is written down in `games/` (or the folder
+    `GAMES_DIR` names; left out of git) as `<id>.jsonl`: a first line
+    with the setup, the game's name, each human's seat token and the
+    rules' version, then a line for each move. A move is written before
+    anyone is told of it, so the file never lacks a move a player saw.
+    The format is in `docs/formats.md`.
+  - When the server starts, it plays each game's moves again (the
+    computers watching, as they did) and carries on: the turn under way
+    starts again with its full shot clock, and computers think afresh.
+    A 78-move game with a computer on the largest map is rebuilt in
+    about 0.2 s, to the same state.
+  - Each human takes back their seat when their tab reconnects with its
+    token (it already tries every few seconds), and gets the game so
+    far, as when rejoining. A player who doesn't come back is warned
+    about and disconnected in the usual times, counted from when the
+    server started.
+  - A game whose rules version isn't the server's, or whose moves no
+    longer play (the rules changed without a new version), doesn't
+    carry on: its replay is kept as it was, under its own rules
+    version, and its file goes. Its players are welcomed afresh.
+  - Setups not yet started aren't kept. A tab in a setup screen that
+    the server no longer knows goes back to the lobby, saying "Lost
+    touch with the server, and this game's setup has closed."; one in
+    a game the server no longer has, saying "The server no longer has
+    this game, so it can't go on." (Either used to sit there stuck,
+    after any lost connection the server had given up on.)
+  - A finished game's file goes once its replay is kept. If the replay
+    can't be written, the file stays, and the replay is kept when the
+    server next starts.
+  - A file that can't be read is left alone and reported. A last line
+    cut short (the server stopped mid-write) is left out: that move was
+    never sent.
+- **Not covered:** chat sent before the restart isn't kept (replays
+  don't hold it either). Open tabs keep the code they loaded: after a
+  change to the rules, raise `RULES_VERSION`, or games carried on could
+  go out of step with tabs running the old rules.

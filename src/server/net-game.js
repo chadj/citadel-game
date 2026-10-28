@@ -8,6 +8,10 @@
 // the computers, keeps a backstop on the shot clock, and notices players
 // who go silent. When the game ends, it hands its replay to `onReplay`,
 // which the server uses to keep every finished game's replay (D62).
+//
+// To survive the server restarting (D63), a game can have a `journal`
+// that each move is written to before anyone is told of it, and
+// `NetGame.restore` builds a game again from what was written.
 
 import { encode } from '../net/protocol.js';
 import { PING_MS, NOT_RESPONDING_MS, DISCONNECT_MS, CLOCK_GRACE_MS } from '../net/protocol.js';
@@ -25,11 +29,13 @@ const ENDED_KEEP_MS = 60000; // a finished game stays a minute, for late hashes
 
 export class NetGame {
   // `conns` has a connection for each human player, null for computers.
-  // `name` is the game's name, for its replay.
-  constructor(setup, conns, { now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout, defer = setImmediate, onEnd = () => {}, onReplay = () => {}, name = '', think = true } = {}) {
+  // `name` is the game's name, for its replay. `journal` is
+  // { move(move), finish() }, or null.
+  constructor(setup, conns, { now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout, defer = setImmediate, onEnd = () => {}, onReplay = () => {}, name = '', journal = null, think = true } = {}) {
     this.setup = setup;
     this.name = name;
     this.onReplay = onReplay;
+    this.journal = journal;
     this.game = createGame(setup);
     this.now = now;
     this.setTimer = setTimer;
@@ -43,6 +49,38 @@ export class NetGame {
     this.seats = conns.map((conn, i) => (conn ? { conn, token: conn.token, heard: now(), state: 'ok', player: i } : null));
     this.desynced = false;
     this.ended = false;
+  }
+
+  // A game written down before the server restarted (D63): `saved` is
+  // { setup, name, tokens, moves }. Its moves are played again here, the
+  // computers watching as they did, and it carries on from where it was
+  // once `carryOn()` is called. No one is connected yet: each human
+  // takes their seat back with their token, and has the usual two
+  // minutes to come back before they're disconnected. Throws if a move
+  // doesn't play again (the rules have changed).
+  static restore(saved, options) {
+    const stand = (token) => (token ? { token, send() {}, game: null } : null);
+    const game = new NetGame(saved.setup, saved.tokens.map(stand), { ...options, name: saved.name });
+    for (const s of game.seats) if (s) s.conn.game = game;
+    saved.moves.forEach((move, k) => {
+      const result = applyMove(game.game, move);
+      if (!result.ok) throw new Error(`move ${k + 1} doesn't play again: ${result.reason}`);
+      game.moves.push(move);
+      game.settle();
+      game.hashes.push(hashState(game.game.state));
+      for (const b of Object.values(game.brains)) b.observe?.(game.game);
+    });
+    game.seats.forEach((seat, i) => {
+      if (seat && game.game.state.players[i].disconnected) seat.state = 'gone';
+    });
+    return game;
+  }
+
+  // Carries on a restored game. The turn under way starts again, with
+  // its full shot clock: no one could play while the server was away.
+  carryOn() {
+    this.watch = this.setTimer(() => this.checkPresence(), PING_MS);
+    this.nextTurn(0);
   }
 
   begin() {
@@ -113,6 +151,14 @@ export class NetGame {
     if (!result.ok) return result;
     const n = this.moves.length + 1;
     this.moves.push(move);
+    // On disk before anyone is told (D63). If it can't be written, the
+    // game goes on, but won't survive a restart.
+    try {
+      this.journal?.move(move);
+    } catch (e) {
+      console.error('a move could not be written down:', e.message);
+      this.journal = null;
+    }
     const before = this.game.events.length;
     const ticks = this.settle();
     this.hashes.push(hashState(this.game.state));
@@ -280,8 +326,12 @@ export class NetGame {
     // The replay is the setup and every move that counted, disconnects
     // included: what a player saves from the summary (spec 12, Saving a
     // replay). Keeping it mustn't stop the game ending.
+    // The game's file goes once its replay is kept; if that fails, the
+    // file stays, and the replay is kept when the server next starts.
     try {
-      this.onReplay({ rulesVersion: RULES_VERSION, setup: this.setup, moves: this.moves.slice() }, this.name);
+      Promise.resolve(this.onReplay({ rulesVersion: RULES_VERSION, setup: this.setup, moves: this.moves.slice() }, this.name))
+        .then(() => this.journal?.finish(), () => {})
+        .catch((e) => console.error('a finished game\'s file could not be removed:', e.message));
     } catch (e) {
       console.error('the replay could not be kept:', e);
     }

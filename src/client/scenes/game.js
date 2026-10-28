@@ -88,9 +88,15 @@ export class GameScene extends BaseScene {
       const net = this.online.net;
       const off = net.on('start', (m) => this.scene.restart({ online: { net, setup: m.setup, you: m.you, moves: m.moves } }));
       const lost = net.on('disconnected', () => this.hud.message('Lost touch with the server. Trying again…', 4000));
+      // A new welcome means the server didn't know this player's seat
+      // when they came back: it no longer has the game (D63).
+      const gone = net.on('welcome', () => {
+        if (session.state.phase !== 'over') this.scene.start('lobby', { message: 'The server no longer has this game, so it can\'t go on.' });
+      });
       this.events.once('shutdown', () => {
         off();
         lost();
+        gone();
         session.close();
       });
     }

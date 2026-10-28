@@ -13,15 +13,21 @@
 // leaves the other player several turns in a row.
 //
 //   npm start                      (in another terminal)
-//   node tools/online-check.js     [--moves 8] [--shots dir]
+//   node tools/online-check.js     [--moves 8] [--shots dir] [--restart n]
 //
 //   --moves n     how many moves to play (8)
 //   --shots dir   save a screenshot of each tab after each move
+//   --restart n   after move n, restart the server (stop whatever serves
+//                 the game's port, and start tools/serve.js again, its
+//                 output going to serve-restart.log in the system's
+//                 temporary folder), then check both tabs take their
+//                 seats back and carry on (decision D63). The new server
+//                 is left running.
 //   CHROME=path   where Chrome is (the macOS default otherwise)
 //   URL=...       the game (http://localhost:8080/)
 
-import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { execSync, spawn } from 'node:child_process';
+import { mkdtempSync, openSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -35,6 +41,7 @@ const option = (name, fallback) => {
 };
 const MOVES = Number(option('moves', 8));
 const SHOTS = option('shots', null);
+const RESTART = option('restart', null) === null ? null : Number(option('restart'));
 const G = 'window.lunarCitadel';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -107,6 +114,18 @@ async function caughtUp(tab, moves) {
   return view(tab);
 }
 
+// Stops the server on the game's port and starts it again.
+async function restartServer() {
+  const port = new globalThis.URL(URL).port || '80';
+  const pids = execSync(`lsof -ti tcp:${port} -sTCP:LISTEN || true`).toString().split('\n').filter(Boolean);
+  for (const pid of pids) process.kill(Number(pid));
+  for (let k = 0; k < 50 && (await fetch(URL).then(() => true, () => false)); k++) await sleep(100);
+  const log = openSync(join(tmpdir(), 'serve-restart.log'), 'a');
+  spawn(process.execPath, [join(import.meta.dirname, 'serve.js')], { detached: true, stdio: ['ignore', log, log], env: { ...process.env, PORT: port } }).unref();
+  for (let k = 0; k < 100 && !(await fetch(URL).then((r) => r.ok, () => false)); k++) await sleep(100);
+  console.log(`restarted the server (output in ${join(tmpdir(), 'serve-restart.log')})`);
+}
+
 const problems = [];
 const check = (ok, text) => {
   if (!ok) problems.push(text);
@@ -158,6 +177,22 @@ try {
       }
     }
     if (n === MOVES || a.phase === 'over') break;
+    if (n === RESTART) {
+      // Each tab's game starts again once it has its seat back: until
+      // then, the old one still shows.
+      for (const tab of tabs) await tab.eval(`window.oldSession = ${G}.scene.getScene('game').session`);
+      await restartServer();
+      for (const tab of tabs) {
+        await tab.front();
+        await waitFor(tab, `(() => { const sc = ${G}.scene.getScene('game');
+          return ${G}.registry.get('net')?.open && !!sc?.session && sc.session !== window.oldSession; })()`, 'its seat back');
+        await caughtUp(tab, n);
+        check(await tab.eval(`${G}.scene.isActive('game')`), `after the restart, ${tab.tag} isn't in the game`);
+      }
+      const after = await Promise.all(tabs.map((t) => view(t)));
+      console.log(`after the restart: both tabs back at move ${n}, turn P${after[0].turn}`);
+      check(after[0].turn === after[1].turn, 'after the restart, the tabs disagree on the turn');
+    }
     // Whoever's turn it is moves: a Shell on even moves, a pass on odd.
     const mover = views.find(({ v }) => v.me === a.turn).tab;
     await mover.front();
@@ -179,4 +214,4 @@ if (problems.length > 0) {
   console.log(`\nProblems:\n- ${problems.join('\n- ')}`);
   process.exit(1);
 }
-console.log('\nOK: both tabs agreed after every move, and only the player whose turn it was could act.');
+console.log(`\nOK: both tabs agreed after every move, and only the player whose turn it was could act${RESTART === null ? '' : ', before and after the server restarted'}.`);

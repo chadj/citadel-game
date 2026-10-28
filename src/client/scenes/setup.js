@@ -117,6 +117,10 @@ export class SetupScene extends BaseScene {
       }),
       net.on('error', (m) => this.problem.setText(m.reason)),
       net.on('closed', (m) => this.scene.start('lobby', { message: m.reason })),
+      // A new welcome means the server didn't know this player when they
+      // came back (it restarted, or dropped them): their setup is gone
+      // (D63).
+      net.on('welcome', () => this.scene.start('lobby', { message: 'Lost touch with the server, and this game\'s setup has closed.' })),
       net.on('start', (m) => this.scene.start('game', { online: { net, setup: m.setup, you: m.you, moves: m.moves } })),
     ];
     this.events.once('shutdown', () => offs.forEach((off) => off()));

@@ -8,6 +8,12 @@
 //
 // It doesn't touch sockets: each connection is { send(text) }, and the
 // socket code hands it what arrives (tools/serve.js).
+//
+// Games under way survive the server restarting (D63): with a `store`
+// (game-store.js), each game is written down as it's played, and
+// `restoreGames()` takes them up again when the server starts. Setups
+// that haven't started aren't kept: their players start again from the
+// lobby.
 
 import { randomBytes } from 'node:crypto';
 import { encode, decode, GAME_NAME_MAX, NAME_MAX } from '../net/protocol.js';
@@ -18,6 +24,7 @@ import { CHAT_MAX } from '../client/core/chat.js';
 import { STYLES } from '../mapgen/generate.js';
 import { PLANETS } from '../rules/terrain/planets.js';
 import { MAX_PLAYERS, MAP_SIZES, FACTIONS, COLORS } from '../rules/constants.js';
+import { RULES_VERSION } from '../rules/version.js';
 import { NetGame } from './net-game.js';
 
 export const GENERATED = 'Generated';
@@ -47,9 +54,11 @@ function cleanSettings(s = {}) {
 export class Lobby {
   // `options` passes on to each game: timers and the clock, for tests,
   // and `onReplay(replay, name)`, called with each finished game's
-  // replay (D62).
-  constructor(options = {}) {
+  // replay (D62). `store` is where games under way are written down
+  // (D63), or none.
+  constructor({ store = null, ...options } = {}) {
     this.options = options;
+    this.store = store;
     this.random = options.random ?? Math.random;
     this.conns = new Set();
     this.rooms = new Map();
@@ -349,7 +358,15 @@ export class Lobby {
     const conns = seats.map((s) => s.conn ?? null);
     this.rooms.delete(room.id);
     this.listChanged();
-    const game = new NetGame(setup, conns, { ...this.options, name: room.name, onEnd: () => this.games.delete(game) });
+    let journal = null;
+    if (this.store) {
+      try {
+        journal = this.store.start(randomBytes(8).toString('hex'), { rulesVersion: RULES_VERSION, name: room.name, setup, tokens: conns.map((c) => c?.token ?? null) });
+      } catch (e) {
+        console.error('a new game could not be written down; it won\'t survive a restart:', e.message);
+      }
+    }
+    const game = new NetGame(setup, conns, { ...this.options, name: room.name, journal, onEnd: () => this.games.delete(game) });
     this.games.add(game);
     for (const c of conns) {
       if (!c) continue;
@@ -357,6 +374,45 @@ export class Lobby {
       c.seat = null;
     }
     game.begin();
+  }
+
+  // Taking up the games written down before the server restarted (D63).
+  // A game made under other rules, or whose moves no longer play the same,
+  // can't carry on: it ends, and its replay is kept as it was. Returns
+  // { resumed, ended }: the names of the games, and for those that ended,
+  // why.
+  restoreGames() {
+    const resumed = [];
+    const ended = [];
+    if (!this.store) return { resumed, ended };
+    for (const saved of this.store.load()) {
+      const journal = this.store.journal(saved.id);
+      if (saved.problem) {
+        ended.push({ name: saved.id, why: saved.problem });
+        continue;
+      }
+      const { head, moves } = saved;
+      const stop = (why) => {
+        ended.push({ name: head.name, why });
+        Promise.resolve(this.options.onReplay?.({ rulesVersion: head.rulesVersion, setup: head.setup, moves }, head.name))
+          .then(() => journal.finish(), () => {});
+      };
+      if (head.rulesVersion !== RULES_VERSION) {
+        stop(`it was played under rules version ${head.rulesVersion}, and the server now has ${RULES_VERSION}`);
+        continue;
+      }
+      let game;
+      try {
+        game = NetGame.restore({ ...head, moves }, { ...this.options, journal, onEnd: () => this.games.delete(game) });
+      } catch (e) {
+        stop(e.message);
+        continue;
+      }
+      this.games.add(game);
+      resumed.push(head.name);
+      game.carryOn();
+    }
+    return { resumed, ended };
   }
 }
 

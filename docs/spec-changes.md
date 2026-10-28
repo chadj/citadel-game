@@ -77,3 +77,13 @@ A feature the user asked for, not yet in the spec. At the end of
 > Opened from there, it fills the whole screen without the browser's
 > bars, and keeps its parts clear of notches, rounded corners and the
 > home indicator.
+
+## 12 — Dropping out: the server restarting (D63)
+The spec covers a player going away, not the server. If the user wants
+it in the spec, at the end of "Rejoining" add:
+
+> - **If the server stops and starts again**, games under way may carry
+>   on: each player takes back their seat as when rejoining, and the
+>   turn under way starts again. Games set up but not started close.
+>   A game made under different rules can't carry on; its replay is
+>   kept.

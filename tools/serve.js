@@ -6,7 +6,9 @@
 //   npm start   then open http://localhost:8080
 // Others on the network join at this machine's address.
 // Every online game that finishes has its replay kept as a file in
-// replays/ (set REPLAY_DIR for another folder; decision D62).
+// replays/ (set REPLAY_DIR for another folder; decision D62). Games under
+// way are written down in games/ (GAMES_DIR) as they're played, and
+// carry on when the server starts again (D63).
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -14,11 +16,13 @@ import { extname, join, normalize, resolve, sep } from 'node:path';
 import { WebSocketServer } from 'ws';
 import { Lobby } from '../src/server/lobby.js';
 import { replayKeeper } from '../src/server/replay-files.js';
+import { gameStore } from '../src/server/game-store.js';
 import { NET_PATH } from '../src/net/protocol.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const PORT = Number(process.env.PORT ?? 8080);
 const REPLAY_DIR = resolve(process.env.REPLAY_DIR ?? join(ROOT, 'replays'));
+const GAMES_DIR = resolve(process.env.GAMES_DIR ?? join(ROOT, 'games'));
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -53,11 +57,20 @@ const server = createServer(async (req, res) => {
 
 const keep = replayKeeper(REPLAY_DIR);
 const lobby = new Lobby({
+  store: gameStore(GAMES_DIR),
+  // A replay that can't be kept leaves its game's file in games/, so
+  // it's tried again when the server next starts.
   onReplay: (replay, name) => keep(replay, name).then(
     (path) => console.log(`replay kept: ${path}`),
-    (e) => console.error(`the replay of "${name}" could not be kept:`, e.message),
+    (e) => {
+      console.error(`the replay of "${name}" could not be kept:`, e.message);
+      throw e;
+    },
   ),
 });
+const { resumed, ended } = lobby.restoreGames();
+for (const name of resumed) console.log(`game carried on: ${name}`);
+for (const { name, why } of ended) console.log(`game not carried on: ${name}: ${why}`);
 const sockets = new WebSocketServer({ server, path: NET_PATH, maxPayload: 64 * 1024 });
 sockets.on('connection', (ws) => {
   const conn = lobby.connect((text) => {

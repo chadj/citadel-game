@@ -68,7 +68,8 @@ negotiable.
 - Run: `npm start` serves the game and the online server at
   http://localhost:8080. The server runs the rules and the computer
   players, so restart it after changing `src/rules`, `src/ai` or
-  `src/server`.
+  `src/server`. Online games under way carry on across a restart
+  (`games/`), unless `RULES_VERSION` changed.
 - Rules changes that alter play raise `RULES_VERSION`
   (`src/rules/version.js`), since replays record it.
 - `docs/formats.md` describes replay files, setups, moves and map

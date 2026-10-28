@@ -10,6 +10,7 @@ or plain JavaScript data.
 - [Moves](#moves)
 - [Map data](#map-data)
 - [Maps in the source](#maps-in-the-source)
+- [Games under way on the server](#games-under-way-on-the-server)
 - [When old files stop working](#when-old-files-stop-working)
 - [Other saved data](#other-saved-data)
 
@@ -211,6 +212,34 @@ it drops `starts`, `settings` and `seed`, and adds `positions`. A map
 generated for one game (spec 02, Generated maps) goes into the setup
 the same way.
 
+## Games under way on the server
+
+So that online games survive the server restarting (decision D63),
+the server writes each game down as it's played, in `games/` (or the
+folder `GAMES_DIR` names) as `<id>.jsonl`, where `<id>` is 16 random
+hexadecimal digits. It's JSON Lines: one JSON value per line.
+
+The first line says what the game started from:
+
+```json
+{ "format": "lunar-citadel-game", "rulesVersion": 3, "name": "Evening game", "setup": { "...": "see Setup" }, "tokens": ["5f1c...", null], "started": "2026-10-28T20:15:00.000Z" }
+```
+
+| Field | What it is |
+|---|---|
+| `format` | Always `"lunar-citadel-game"`. |
+| `rulesVersion`, `setup` | As in a replay. |
+| `name` | The game's name, for its replay file. |
+| `tokens` | Each human player's seat token, by player index (`null` for a computer): a returning tab offers it to take back that seat. They're private to the server and its players. |
+| `started` | When the game started, as an ISO date. |
+
+Every line after it is one move, as in a replay, added as the move is
+played and before anyone is told of it. A last line cut short (the
+server stopped while writing it) is left out when the file is read.
+
+The first line plus the moves is a replay: when a game can't carry on,
+or finishes, that's what's kept in `replays/`, and the file is removed.
+
 ## When old files stop working
 
 - **A replay plays back only under the rules version it was made
@@ -218,6 +247,9 @@ the same way.
   refused with a message saying both versions (spec 12, What a replay
   records); the browser's saved replays from other versions are listed
   but can't be played.
+- **A game under way on the server** carries on after a restart only
+  under the rules version it was started with; otherwise it ends, and
+  its replay is kept.
 - **Raise `RULES_VERSION`** whenever a change could make a recorded game
   play back differently: anything in `src/rules` that changes how a
   move plays out, or how a setup becomes a game. Changes to the screen,

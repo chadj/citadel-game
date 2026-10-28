@@ -9,7 +9,7 @@ browser game (hot seat, replays, options and key rebinding, the
 narrow-screen layout), computer players, sound and the aide, fog of
 war, and online play (lobby, setup, lockstep games, taking back a seat
 after a dropped connection). `docs/provenance.md` says what each part
-implements; `docs/decisions.md` (D1 to D62) records every choice;
+implements; `docs/decisions.md` (D1 to D63) records every choice;
 `docs/formats.md` describes replay files and map data.
 
 Most recent work:
@@ -38,6 +38,8 @@ Most recent work:
   What each player chooses: the server used to ignore it).
 - The server keeps every finished online game's replay in `replays/`
   (D62).
+- Online games survive the server restarting (D63): written down in
+  `games/` as they're played, and taken up again when it starts.
 
 ## Next: M11, Polish
 - **AI speed on large maps.** Thinking peaks around 4 to 7 s on
@@ -72,13 +74,14 @@ Most recent work:
 
 ## Waiting on the user
 - `docs/spec-changes.md` has proposed spec wording for D38, D42, D53,
-  D55, D56, D59 and D60. The user applies it to `spec/`.
+  D55, D56, D59, D60 and D63. The user applies it to `spec/`.
 
 ## Checking work by hand
 - `npm start`, then open http://localhost:8080. For an online game,
   open two windows or two browsers; each is a player.
 - The server runs the rules and computers: restart it after changing
-  `src/rules`, `src/ai` or `src/server`.
+  `src/rules`, `src/ai` or `src/server`. Games under way carry on
+  across the restart, unless `RULES_VERSION` changed.
 - `node tools/ai-match.js "<map>"` plays two computers against each
   other with no browser, and prints their launches, failed landings,
   where their Pontoons went, hits on their Citadels, the winner and
@@ -87,6 +90,9 @@ Most recent work:
 - `node tools/online-check.js` (with `npm start` running) plays an
   online game between two tabs of a headless Chrome, and checks after
   every move that both agree and only the right player can act.
+  `--restart n` restarts the server after move n and checks both tabs
+  take their seats back and carry on (it leaves the new server
+  running, its output in the system's temporary folder).
 - `node tools/screenshot.js out.png --scene setup.js` (with `npm start`
   running) starts a game in a headless Chrome, runs a script in the
   page to set a scene up, and saves a screenshot. Its header lists what

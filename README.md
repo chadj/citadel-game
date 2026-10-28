@@ -31,7 +31,11 @@ other players on your network open the same address with your machine's
 name or IP in place of `localhost`. Set `PORT` to use another port.
 The server keeps the replay of every online game that finishes, as a
 replay file in `replays/` (set `REPLAY_DIR` for another folder); open
-one from the game's Replays screen.
+one from the game's Replays screen. Games under way are written down in
+`games/` (set `GAMES_DIR` for another folder), so they carry on if the
+server restarts: players' tabs reconnect by themselves and take back
+their seats. After a change to the rules, a game started under the old
+rules ends instead, and its replay is kept.
 
 On a phone or tablet, use the browser's "Add to Home Screen" to install
 the game; opened from there it fills the screen. Android's Chrome does
