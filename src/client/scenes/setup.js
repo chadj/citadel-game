@@ -63,6 +63,9 @@ export class SetupScene extends BaseScene {
     this.heading = this.title(this.online ? this.online.room.name : 'New game');
     this.box = panel(this, 0.9);
     this.rows = this.seats.map((seat, i) => this.makeRow(seat, i));
+    // On a phone each seat takes two rows: a wider gap with a line in it
+    // shows where one seat ends and the next begins.
+    this.dividers = this.seats.slice(1).map(() => this.add.rectangle(0, 0, 10, 1, 0x4a5a6b, 1).setOrigin(0, 0.5));
     this.settings = [
       new Button(this, '', { size: 13, onClick: () => this.cycle('mapIndex', MAPS.length + 1) }),
       new Button(this, '', { size: 13, onClick: () => this.cycleList('clock', CLOCKS) }),
@@ -349,10 +352,10 @@ export class SetupScene extends BaseScene {
     let y = 16;
     this.heading.setPosition(width / 2, y);
     y += 50;
-    const rowH = narrow ? 76 : 40;
+    const rowH = narrow ? 88 : 40;
     this.box.setPosition(x0 - 6, y - 6).setSize(w + 12, rowH * MAX_PLAYERS + 8);
     const colW = narrow ? (w - 8) / 3 : (w - 30) / 5;
-    this.rows.forEach((row) => {
+    this.rows.forEach((row, i) => {
       const h = 32;
       row.kind.setSize(colW, h).setPosition(x0, y);
       row.name.setPosition(x0 + colW + 6, y);
@@ -365,6 +368,8 @@ export class SetupScene extends BaseScene {
       row.swatch.setPosition(x2 + colW + 6 + colW - 12, y2 + 4).setSize(10, h - 8);
       row.team.setSize(colW, h).setPosition(x2 + (colW + 6) * 2, y2);
       y += rowH;
+      const divider = this.dividers[i];
+      if (divider) divider.setVisible(narrow).setPosition(x0, y - 9).setSize(w, 1);
     });
     y += 14;
     const sw = narrow ? w : (w - 6) / 2;

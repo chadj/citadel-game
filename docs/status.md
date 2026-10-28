@@ -1,7 +1,7 @@
 # Status
 
 Where the work stands, and what's next. Read this after `CLAUDE.md`
-when picking the work up. Updated 2026-10-26.
+when picking the work up. Updated 2026-10-28.
 
 ## Done
 Milestones M0 to M10: the rules, maps and the map generator, the
@@ -24,6 +24,7 @@ Most recent work:
 - Computers watch every turn, find attackers in the fog from what
   they see, and answer attacks: Interceptors first, Barriers when
   they can afford them, and firing back (D59).
+- On a phone's setup screen, a line between seats.
 
 ## Next: M11, Polish
 - **AI speed on large maps.** Thinking peaks around 4 to 7 s on
