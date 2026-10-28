@@ -98,7 +98,7 @@ export class LobbyScene extends BaseScene {
       row.join.setVisible(!!g);
       if (!g) return;
       const clock = g.clock === 0 ? 'no shot clock' : `${g.clock} s clock`;
-      row.text.setText(`${g.name}  ·  ${g.map}  ·  ${g.joined}/${g.needed} players  ·  ${clock}, ${WINDS[g.wind]}, fog ${g.fog ? 'on' : 'off'}`);
+      row.parts = [g.name, `${g.map}  ·  ${g.joined}/${g.needed} players`, `${clock}, ${WINDS[g.wind]}, fog ${g.fog ? 'on' : 'off'}`];
       row.join.setEnabled(g.joined < g.needed);
     });
     this.layout();
@@ -106,6 +106,7 @@ export class LobbyScene extends BaseScene {
 
   layout() {
     const { width, height } = this.view;
+    const narrow = width < 720;
     const w = Math.min(760, width - 24);
     const x0 = (width - w) / 2;
     let y = 16;
@@ -114,18 +115,33 @@ export class LobbyScene extends BaseScene {
     this.nameLabel.setPosition(x0, y + 8);
     this.nameField.setPosition(x0 + 80, y);
     y += 46;
-    const rowH = 40;
-    this.box.setPosition(x0 - 6, y - 6).setSize(w + 12, rowH * Math.max(1, Math.min(ROWS, this.games.length)) + 8);
-    this.empty.setPosition(x0 + 4, y + 8);
-    this.rows.forEach((row) => {
-      row.join.setSize(80, 32).setPosition(x0 + w - 80, y);
-      row.text.setPosition(x0 + 4, y + 8).setWordWrapWidth(w - 96);
-      y += rowH;
+    // On a phone each game takes three lines: its name, the map and
+    // players, then the settings.
+    const rowH = narrow ? 64 : 40;
+    const shown = Math.max(1, Math.min(ROWS, this.games.length));
+    this.box.setPosition(x0 - 6, y - 6).setSize(w + 12, rowH * shown + 8);
+    this.empty.setPosition(x0 + 4, y + 8).setWordWrapWidth(w - 8);
+    this.rows.forEach((row, k) => {
+      if (row.parts) row.text.setText(row.parts.join(narrow ? '\n' : '  ·  '));
+      row.join.setSize(80, 32).setPosition(x0 + w - 80, y + (rowH - 8 - 32) / 2);
+      row.text.setPosition(x0 + 4, y + (narrow ? 2 : 8)).setWordWrapWidth(w - 96);
+      if (k < shown) y += rowH;
     });
-    y = Math.min(y + 10, height - 140);
-    this.hostLabel.setPosition(x0, y + 8);
-    this.gameName.setPosition(x0 + 90, y);
-    this.hostBtn.setSize(100, 36).setPosition(x0 + 330, y);
+    // Hosting comes after the games; on a phone its label goes above.
+    y += 14;
+    const hostW = narrow ? 90 : 100;
+    if (narrow) {
+      this.hostLabel.setPosition(x0, y);
+      y += 22;
+      this.gameName.setPosition(x0, y);
+      this.gameName.input.style.width = `${w - hostW - 8 - 18}px`;
+      this.hostBtn.setSize(hostW, 36).setPosition(x0 + w - hostW, y);
+    } else {
+      this.hostLabel.setPosition(x0, y + 8);
+      this.gameName.setPosition(x0 + 90, y);
+      this.gameName.input.style.width = '220px';
+      this.hostBtn.setSize(hostW, 36).setPosition(x0 + 90 + 220 + 18 + 8, y);
+    }
     this.status.setPosition(x0, y + 50).setWordWrapWidth(w);
     this.back.setSize(110, 44).setPosition(16, height - 60);
   }
