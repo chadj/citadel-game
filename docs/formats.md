@@ -47,6 +47,11 @@ JSON object:
 | `setup` | Everything chosen or rolled before play, including the whole map. |
 | `moves` | Every move that counted, in the order played. Refused moves aren't recorded. |
 
+The server also keeps every finished online game's replay as such a
+file (decision D62): in `replays/`, or the folder `REPLAY_DIR` names,
+named after the game (or its players, as `Ana vs Bo`) and the date and
+time it ended, with a number after the time if that name is taken.
+
 A replay doesn't hold state hashes, chat, or anything shown on screen:
 playing it back reproduces them. Code: `src/rules/replay.js` (recording
 and playback), `src/client/core/replay-store.js` (files and the

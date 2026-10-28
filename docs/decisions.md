@@ -1532,3 +1532,27 @@ on 2026-10-25. Exact numbers chosen during tuning go in
 - **Measured** (two computers, 12 games over six maps, against the old
   maps): failed landings on slopes 35 against 22, in about 700 launches
   each; games ended at about the same pace.
+
+## D62. The server keeps every online game's replay
+- **Date:** 2026-10-28
+- **Spec:** 12 Saving a replay ("Choice: an implementation may also
+  save every online game's replay by itself"), What a replay records.
+- **Asked for:** the server saves the replay of every finished online
+  game.
+- **Choice:**
+  - When an online game ends (a side wins, or no connected human is
+    left, as when everyone drops out), the server writes its replay as
+    a replay file, the same as a player saves from the summary
+    (docs/formats.md), so the game's Replays screen opens it.
+  - Games that never finish aren't kept: one still going when the
+    server stops, and setups that never start.
+  - The files go in `replays/` in the project (left out of git), or the
+    folder `REPLAY_DIR` names. They aren't served to players.
+  - A file is named after the game, or its players ("Ana vs Bo") if the
+    game has no name, with the date and time it ended: "Evening game
+    2026-10-28 20-15-00.lcreplay.json". A name already there gets a
+    number after the time; nothing is overwritten.
+  - Nothing is ever deleted: the folder grows by one small file per
+    game (most are tens of kilobytes; a generated map adds its terrain).
+  - Writing a file can't stop or hold up the game: a failure is
+    logged.

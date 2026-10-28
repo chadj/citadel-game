@@ -5,16 +5,20 @@
 // over a WebSocket at /net (spec 12; decision D52):
 //   npm start   then open http://localhost:8080
 // Others on the network join at this machine's address.
+// Every online game that finishes has its replay kept as a file in
+// replays/ (set REPLAY_DIR for another folder; decision D62).
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { WebSocketServer } from 'ws';
 import { Lobby } from '../src/server/lobby.js';
+import { replayKeeper } from '../src/server/replay-files.js';
 import { NET_PATH } from '../src/net/protocol.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const PORT = Number(process.env.PORT ?? 8080);
+const REPLAY_DIR = resolve(process.env.REPLAY_DIR ?? join(ROOT, 'replays'));
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -47,7 +51,13 @@ const server = createServer(async (req, res) => {
   }
 });
 
-const lobby = new Lobby();
+const keep = replayKeeper(REPLAY_DIR);
+const lobby = new Lobby({
+  onReplay: (replay, name) => keep(replay, name).then(
+    (path) => console.log(`replay kept: ${path}`),
+    (e) => console.error(`the replay of "${name}" could not be kept:`, e.message),
+  ),
+});
 const sockets = new WebSocketServer({ server, path: NET_PATH, maxPayload: 64 * 1024 });
 sockets.on('connection', (ws) => {
   const conn = lobby.connect((text) => {

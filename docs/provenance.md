@@ -233,15 +233,18 @@ entries in `decisions.md` it relies on.
   `src/client/scenes/setup.js` and `src/client/scenes/game.js`;
   `setupProblem` in `src/client/core/newgame.js` (shared by the setup
   screen and the server); `tools/online-check.js` (two tabs playing,
-  for checking).
+  for checking); `src/server/replay-files.js` (keeping finished games'
+  replays).
 - **Spec:** 12 Ways to play, The lobby, Setting up a game, When the
   game starts, Every machine plays the same game, Dropping out,
   Rejoining (before a disconnect), Determinism checks 1, 3, 5 (2, on
   different machines, is checked live by the server's hash compare);
   03 Players who disconnect; 10 Chat, Quit; 11 the aide's news of
-  players not responding.
+  players not responding; 12 Saving a replay (the server keeps every
+  finished game's).
 - **Decisions:** D52, D56 (numbered repeat names; a duplicated tab starts
-  afresh; a tab in the background misses no moves).
+  afresh; a tab in the background misses no moves), D62 (the server
+  keeps every finished game's replay).
 - **Known gaps** (to come back to):
   - **Rejoining after a disconnect** isn't offered (the spec makes
     rejoining optional).

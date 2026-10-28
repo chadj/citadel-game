@@ -10,6 +10,13 @@ import { Lobby } from '../../src/server/lobby.js';
 import { encode, NOT_RESPONDING_MS, DISCONNECT_MS, PING_MS } from '../../src/net/protocol.js';
 import { createGame, applyMove, settle } from '../../src/rules/game.js';
 import { hashState } from '../../src/rules/hash.js';
+import { playReplay } from '../../src/rules/replay.js';
+import { RULES_VERSION } from '../../src/rules/version.js';
+import { replayKeeper } from '../../src/server/replay-files.js';
+import { replayFromText } from '../../src/client/core/replay-store.js';
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 // Timers that run when the test says time has passed.
 function clock() {
@@ -268,4 +275,45 @@ test('the server thinks for computers, and sends their moves like anyone\'s', ()
   time.pass(30000);
   const theirs = host.all('move').find((m) => m.move.player === 1);
   assert.ok(theirs, 'the computer moved');
+});
+
+test('a finished game hands over its replay, which plays back to the same end', () => {
+  const kept = [];
+  const { host, guest, setup } = started({ onReplay: (replay, name) => kept.push({ replay, name }) });
+  const first = createGame(setup).state.turn.player;
+  (first === 0 ? host : guest).say('move', { move: { type: 'pass', player: first } });
+  assert.equal(kept.length, 0, 'not before the game ends');
+  // A player who quits leaves their side in play; with no one
+  // connected left, the game ends.
+  guest.say('quit');
+  assert.equal(kept.length, 0);
+  host.say('quit');
+  assert.equal(kept.length, 1);
+  const { replay, name } = kept[0];
+  assert.equal(name, 'Evening game');
+  assert.deepEqual(replay.setup, setup);
+  assert.deepEqual(replay.moves.slice(-2), [{ type: 'disconnect', player: 1 }, { type: 'disconnect', player: 0 }]);
+  assert.equal(playReplay(replay).game.state.phase, 'over');
+});
+
+test('kept replays are files the Replays screen opens, and never overwrite each other', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'lunar-citadel-replays-'));
+  try {
+    const keep = replayKeeper(join(dir, 'replays'), { now: () => new Date(2026, 9, 28, 20, 15, 0) });
+    const replay = { rulesVersion: RULES_VERSION, setup: { players: [{ name: 'Ana' }, { name: 'Bo' }] }, moves: [] };
+    await keep(replay, 'Evening game');
+    await keep(replay, 'Evening game');
+    await keep(replay, '');
+    const names = (await readdir(join(dir, 'replays'))).sort();
+    assert.deepEqual(names, [
+      'Ana vs Bo 2026-10-28 20-15-00.lcreplay.json',
+      'Evening game 2026-10-28 20-15-00 2.lcreplay.json',
+      'Evening game 2026-10-28 20-15-00.lcreplay.json',
+    ]);
+    const text = await readFile(join(dir, 'replays', names[2]), 'utf8');
+    assert.equal(JSON.parse(text).format, 'lunar-citadel-replay');
+    assert.deepEqual(replayFromText(text), { ok: true, replay });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

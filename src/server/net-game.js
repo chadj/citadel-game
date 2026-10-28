@@ -6,12 +6,14 @@
 // checks each move with the rules, numbers it and sends it to everyone,
 // and compares every machine's state hash with its own. It thinks for
 // the computers, keeps a backstop on the shot clock, and notices players
-// who go silent.
+// who go silent. When the game ends, it hands its replay to `onReplay`,
+// which the server uses to keep every finished game's replay (D62).
 
 import { encode } from '../net/protocol.js';
 import { PING_MS, NOT_RESPONDING_MS, DISCONNECT_MS, CLOCK_GRACE_MS } from '../net/protocol.js';
 import { createGame, applyMove, step } from '../rules/game.js';
 import { hashState } from '../rules/hash.js';
+import { RULES_VERSION } from '../rules/version.js';
 import { CLOCK_START_DELAY } from '../rules/constants.js';
 import { CHAT_MAX, receives } from '../client/core/chat.js';
 import { brainsFor } from '../client/core/computers.js';
@@ -23,8 +25,11 @@ const ENDED_KEEP_MS = 60000; // a finished game stays a minute, for late hashes
 
 export class NetGame {
   // `conns` has a connection for each human player, null for computers.
-  constructor(setup, conns, { now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout, defer = setImmediate, onEnd = () => {}, think = true } = {}) {
+  // `name` is the game's name, for its replay.
+  constructor(setup, conns, { now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout, defer = setImmediate, onEnd = () => {}, onReplay = () => {}, name = '', think = true } = {}) {
     this.setup = setup;
+    this.name = name;
+    this.onReplay = onReplay;
     this.game = createGame(setup);
     this.now = now;
     this.setTimer = setTimer;
@@ -272,6 +277,14 @@ export class NetGame {
     if (this.ended) return;
     this.ended = true;
     this.clearTimer(this.clockTimer);
+    // The replay is the setup and every move that counted, disconnects
+    // included: what a player saves from the summary (spec 12, Saving a
+    // replay). Keeping it mustn't stop the game ending.
+    try {
+      this.onReplay({ rulesVersion: RULES_VERSION, setup: this.setup, moves: this.moves.slice() }, this.name);
+    } catch (e) {
+      console.error('the replay could not be kept:', e);
+    }
     this.setTimer(() => {
       this.clearTimer(this.watch);
       for (const s of this.seats) if (s?.conn?.game === this) s.conn.game = null;

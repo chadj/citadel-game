@@ -29,6 +29,9 @@ npm start
 Then open http://localhost:8080. The same server hosts online games:
 other players on your network open the same address with your machine's
 name or IP in place of `localhost`. Set `PORT` to use another port.
+The server keeps the replay of every online game that finishes, as a
+replay file in `replays/` (set `REPLAY_DIR` for another folder); open
+one from the game's Replays screen.
 
 On a phone or tablet, use the browser's "Add to Home Screen" to install
 the game; opened from there it fills the screen. Android's Chrome does

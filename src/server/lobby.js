@@ -45,7 +45,9 @@ function cleanSettings(s = {}) {
 }
 
 export class Lobby {
-  // `options` passes on to each game: timers and the clock, for tests.
+  // `options` passes on to each game: timers and the clock, for tests,
+  // and `onReplay(replay, name)`, called with each finished game's
+  // replay (D62).
   constructor(options = {}) {
     this.options = options;
     this.random = options.random ?? Math.random;
@@ -347,7 +349,7 @@ export class Lobby {
     const conns = seats.map((s) => s.conn ?? null);
     this.rooms.delete(room.id);
     this.listChanged();
-    const game = new NetGame(setup, conns, { ...this.options, onEnd: () => this.games.delete(game) });
+    const game = new NetGame(setup, conns, { ...this.options, name: room.name, onEnd: () => this.games.delete(game) });
     this.games.add(game);
     for (const c of conns) {
       if (!c) continue;
