@@ -275,6 +275,14 @@ export class WorldView {
     // Pontoon decks first: they lie under the units standing on them.
     for (const u of units) if (u.kind === 'pontoon') this.drawUnit(u, copies);
     for (const u of units) if (u.kind !== 'pontoon') this.drawUnit(u, copies);
+    // Domes last, over every unit, so what stands under one is seen
+    // inside it.
+    for (const u of units) {
+      if (u.kind !== 'barrier' || !u.up || !isWorking(s, u)) continue;
+      if (!this.mine(u.owner) && !this.sees(u.x, u.y, u.base)) continue;
+      const my = (u.y - Math.max(0, u.base) * LIFT) / PX;
+      for (const [sx, sy] of copies(u.x / PX, my, DOME_RADIUS / PX + 40)) this.drawDome(sx, sy, u);
+    }
   }
 
   drawUnit(u, copies) {
@@ -309,7 +317,6 @@ export class WorldView {
             g.strokePath();
           }
         }
-        if (u.kind === 'barrier' && u.up && working) this.drawDome(sx, sy, u);
       }
       // Damage shows even through the fog, for as long as the unit is
       // damaged: smoke, and sparks when it's bad (spec 04, Damage).

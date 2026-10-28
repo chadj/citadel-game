@@ -148,8 +148,11 @@ entries in `decisions.md` it relies on.
     `core/prefs.js`, `core/keys.js`, `core/newgame.js`, `core/maps.js`,
     `core/replay-store.js`, `render/terrain-art.js`,
     `render/fog-art.js`
-  - Phaser: `main.js`, `scenes/*`, `ui/*`, `render/world.js`,
-    `render/effects.js`
+  - Phaser: `main.js`, `scenes/*`, `ui/*`, `render/world.js` (Barrier
+    domes drawn after every unit, so what stands under one is seen
+    inside it), `render/effects.js`
+  - `tools/screenshot.js`: a screenshot of a scene set up in a headless
+    Chrome, for checking how the screen draws.
   - rules events gained fields for the screen and summary (`by`,
     `owner`, `gains`, `amount`, `unitOwner`, `spread`, a position
     on every `buildingFailed`, and `burnt` on a `destroy` caused by a

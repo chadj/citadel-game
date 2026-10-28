@@ -73,3 +73,14 @@ Most recent work:
 - `node tools/online-check.js` (with `npm start` running) plays an
   online game between two tabs of a headless Chrome, and checks after
   every move that both agree and only the right player can act.
+- `node tools/screenshot.js out.png --scene setup.js` (with `npm start`
+  running) starts a game in a headless Chrome, runs a script in the
+  page to set a scene up, and saves a screenshot. Its header lists what
+  makes a screenshot come out black or empty: a tab in the background,
+  units hidden by the fog, and moving Phaser's camera instead of the
+  game's (`sc.cam.centerOn`).
+- Headless Chrome started by these tools is closed when they finish.
+  If one is cut off (for example by piping it into `head`), its Chrome
+  keeps running: `pkill -f remote-debugging-port=93` stops them. The
+  shell's sandbox can't see other processes, so check with `ps` outside
+  it.
