@@ -893,14 +893,16 @@ on 2026-10-25. Exact numbers chosen during tuning go in
 
     | Step | Energy | Terrain | Water |
     |---|---|---|---|
-    | 0 | Scarce: 4 vents per 1,024 tiles | Smooth: 5% raised | None |
-    | 1 | Low: 7 | Gentle: 12% | Little: 6% of the map |
-    | 2 | Normal: 11 | Normal: 20% | Some: 13% |
-    | 3 | Rich: 15 | Hilly: 28% | Much: 24% |
-    | 4 | Abundant: 22 | Rough: 36% | Islands: 50% |
+    | 0 | Scarce: 4 vents per 1,024 tiles | Smooth: 15% raised | None |
+    | 1 | Low: 7 | Gentle: 25% | Little: 6% of the map |
+    | 2 | Normal: 11 | Normal: 35% | Some: 13% |
+    | 3 | Rich: 15 | Hilly: 45% | Much: 24% |
+    | 4 | Abundant: 22 | Rough: 55% | Islands: 50% |
 
-    Raised land is a share of the land; Mountains are 10% to 45% of
-    it, rising with the step, and rougher steps add finer hills. More
+    Raised land is a share of the land; Mountains are 20% to 50% of
+    it, rising with the step, and rougher steps add finer hills. (The
+    Terrain shares were raised, and are now measured on the finished
+    map, in D61; they were 5% to 36%.) More
     energy also means larger vents.
   - **How it builds a map** (revised 2026-10-26 for Landforms, D55):
     two fields of smooth noise, one for water and one for height, cut
@@ -1484,3 +1486,49 @@ on 2026-10-25. Exact numbers chosen during tuning go in
 - **Limits:** Android's Chrome installs a full-screen app only from
   https or `localhost`; from a plain http address on the network,
   "Add to Home screen" makes a shortcut that opens in the browser.
+
+## D61. Hillier maps
+- **Date:** 2026-10-28
+- **Spec:** 02 Generated maps (Terrain: "from smooth to rough"),
+  Levels, Landforms, Maps that come with the game. The spec leaves the
+  shares to us.
+- **Problem (reported by the user):** the maps, built-in and generated,
+  all skewed too flat: too little raised ground and too few Mountains.
+  - The Terrain steps aimed for 5% to 36% of the land raised, and
+    random maps (steps 1 to 3) for at most 28%.
+  - The generator undershot even those: making every hill flat-topped,
+    with no knife edges, trims raised land, and so does flattening the
+    starts. A "Normal" map came out 6% to 18% raised, with 0% to 4%
+    Mountain. The two hand-drawn maps were 6% to 7% raised.
+- **Asked for:** more raised ground and more Mountains, with "Normal"
+  about a third of the land raised, for a start; the built-in maps
+  regenerated, and the hand-drawn ones redrawn hillier.
+- **Choice:**
+  - Terrain steps: 15%, 25%, 35%, 45% and 55% of the land raised, with
+    Mountains 20%, 28%, 35%, 42% and 50% of the raised land. Random
+    (steps 1 to 3) gives 25% to 45%.
+  - The shares are measured on the finished land: the generator cuts
+    its height noise, builds and trims the land, measures it, and cuts
+    again until it's within 1% (at most 8 tries; the noise is the same
+    each time, so a seed still gives one map). Mirrored maps flatten
+    their starts before measuring. Maps with the Islands water step come
+    out lower (about 28% to 42% raised), since small islands can't hold
+    flat-topped hills.
+  - Vents: where hills leave no flat square for a vent, the spot that
+    is closest to one is levelled to its lowest level (so a vent can sit
+    on a Plateau), in every mirror image; a levelling that would wear
+    away the flat ground of a start or a vent already placed is undone
+    and the next spot tried.
+  - Craters: where hills leave no room 3 tiles from every vent, a
+    smaller crater (radius 40 to 50 px) may sit 2 tiles from one. A
+    small, hilly map may still have none (Red Steps), as island maps
+    may.
+  - The ten generated maps were rebuilt from the same recipes and seeds
+    (D47). Quiet Basin and Shallow Crossing were redrawn with the same
+    water, starts and vents, and new hills: about 35% raised and 10%
+    Mountain each. Some of their craters moved onto flat hilltops.
+  - Old replays keep the maps they were played on, as a replay carries
+    its map.
+- **Measured** (two computers, 12 games over six maps, against the old
+  maps): failed landings on slopes 35 against 22, in about 700 launches
+  each; games ended at about the same pace.

@@ -32,8 +32,10 @@ export const WATER_NAMES = Object.freeze(['None', 'Little', 'Some', 'Much', 'Isl
 
 const TILE_PX = 60;
 const WATER_SHARE = [0, 0.06, 0.13, 0.24, 0.5]; // of the map, by step
-const RAISED_SHARE = [0.05, 0.12, 0.2, 0.28, 0.36]; // Plateau and Mountain, of the land
-const MOUNTAIN_SHARE = [0.1, 0.2, 0.3, 0.38, 0.45]; // of the raised land
+// How much of the finished land is raised, by Terrain step (D61): it's
+// measured on the map as it comes out, not on the noise it starts from.
+const RAISED_SHARE = [0.15, 0.25, 0.35, 0.45, 0.55]; // Plateau and Mountain, of the land
+const MOUNTAIN_SHARE = [0.2, 0.28, 0.35, 0.42, 0.5]; // of the raised land
 const ROUGH = [0.15, 0.3, 0.45, 0.6, 0.75]; // how much the finer noise counts
 const VENTS_PER_1024 = [4, 7, 11, 15, 22]; // vents per 1,024 tiles, by step
 const LARGE_SHARE = [0.05, 0.15, 0.25, 0.35, 0.45];
@@ -234,6 +236,17 @@ class Land {
     this.settle();
   }
 
+  copy() {
+    return [this.c, this.north, this.west, this.pond].map((a) => a.slice());
+  }
+
+  restore([c, north, west, pond]) {
+    this.c.set(c);
+    this.north.set(north);
+    this.west.set(west);
+    this.pond.set(pond);
+  }
+
   // Water never shares a tile with a cliff: marks go from any tile with
   // a raised corner.
   sanitize() {
@@ -249,10 +262,10 @@ class Land {
     }
   }
 
-  // Makes the (2k+1)-square block of tiles around a tile flat Ground,
-  // with no water in it or touching it.
-  flatten(x, y, k = 2) {
-    for (let dy = -k; dy <= k + 1; dy++) for (let dx = -k; dx <= k + 1; dx++) this.set(x + dx, y + dy, GROUND);
+  // Makes the (2k+1)-square block of tiles around a tile flat at a level
+  // (Ground unless said), with no water in it or touching it.
+  flatten(x, y, k = 2, level = GROUND) {
+    for (let dy = -k; dy <= k + 1; dy++) for (let dx = -k; dx <= k + 1; dx++) this.set(x + dx, y + dy, level);
     for (let dy = -k - 1; dy <= k + 1; dy++) {
       for (let dx = -k - 1; dx <= k + 1; dx++) {
         const inside = Math.abs(dx) <= k && Math.abs(dy) <= k;
@@ -339,19 +352,59 @@ function quantile(field, share, mask = null) {
   return vals[Math.min(vals.length - 1, Math.floor(share * vals.length))];
 }
 
-// The levels of an area from noise, w by h: 0 water to 3 Mountain.
-function levels(w, h, s, r, wrapAround) {
+// The noise for an area, w by h: one field for water, one for height.
+function fields(w, h, s, r, wrapAround) {
   const base = Math.max(2, Math.round(w / 10));
   const wet = noise(w, h, r, { cells: s.water >= 4 ? base * 2 : base, rough: 0.45, period: wrapAround });
   const high = noise(w, h, r, { cells: base, rough: ROUGH[s.terrain], period: wrapAround });
   const seaLevel = quantile(wet, WATER_SHARE[s.water]);
   const land = new Uint8Array(w * h);
   for (let k = 0; k < land.length; k++) land[k] = wet[k] >= seaLevel || WATER_SHARE[s.water] === 0 ? 1 : 0;
-  const raised = quantile(high, 1 - RAISED_SHARE[s.terrain], land);
-  const peak = quantile(high, 1 - RAISED_SHARE[s.terrain] * MOUNTAIN_SHARE[s.terrain], land);
-  const out = new Uint8Array(w * h);
+  return { high, land };
+}
+
+// The levels from the noise, 0 water to 3 Mountain, with shares of the
+// land cut for raised ground and for Mountains.
+function levels({ high, land }, raisedShare, peakShare) {
+  const raised = quantile(high, 1 - raisedShare, land);
+  const peak = quantile(high, 1 - peakShare, land);
+  const out = new Uint8Array(high.length);
   for (let k = 0; k < out.length; k++) out[k] = !land[k] ? 0 : high[k] >= peak ? 3 : high[k] >= raised ? 2 : 1;
   return out;
+}
+
+// The shares of the land that are raised and that are Mountain.
+function measure(land) {
+  let dry = 0;
+  let raised = 0;
+  let peak = 0;
+  for (const l of land.c) {
+    if (l === WATER) continue;
+    dry++;
+    if (l > GROUND) raised++;
+    if (l === 3) peak++;
+  }
+  return [raised / Math.max(1, dry), peak / Math.max(1, dry)];
+}
+
+// Builds the land so the finished map has its Terrain step's shares.
+// Pruning trims hills, so the noise is cut higher until what's left
+// measures right (D61). `build(raisedShare, peakShare)` makes the land
+// from the same noise each time.
+function shaped(build, s) {
+  const want = RAISED_SHARE[s.terrain];
+  const wantPeak = want * MOUNTAIN_SHARE[s.terrain];
+  let cut = want;
+  let cutPeak = wantPeak;
+  let land = null;
+  for (let k = 0; k < 8; k++) {
+    land = build(cut, cutPeak);
+    const [raised, peak] = measure(land);
+    if (Math.abs(raised - want) < 0.01 && Math.abs(peak - wantPeak) < 0.01) break;
+    cut = Math.min(0.95, cut * (want / Math.max(raised, 0.01)));
+    cutPeak = Math.min(cut, cutPeak * (wantPeak / Math.max(peak, 0.005)));
+  }
+  return land;
 }
 
 const center = (t) => t * TILE_PX + TILE_PX / 2;
@@ -377,23 +430,52 @@ function ventSizes(count, step, r) {
 
 // Places vents on flat tiles: a large vent needs a 5-tile square of one
 // level around it, the others a 3-tile square (D46). `ok` filters
-// candidate tiles. Returns tile positions with sizes.
-function placeVents(land, sizes, r, ok, starts, placed = []) {
+// candidate tiles. Where hills leave no such square, the spot closest to
+// one is levelled down to its lowest level, in every image of it that
+// `images` gives (D61). Returns tile positions with sizes.
+function placeVents(land, sizes, r, ok, starts, placed = [], images = (t) => [t]) {
   const n = land.n;
   const out = [];
   for (const size of sizes) {
     const k = size === 'large' ? 2 : 1;
     const cands = [];
+    const spots = [];
     for (let y = 0; y < n; y++) {
       for (let x = 0; x < n; x++) {
-        if (!ok(x, y) || !land.flatBlock(x, y, k)) continue;
+        if (!ok(x, y)) continue;
         if (starts.some((st) => tileGap2(n, st, { x, y }) < 9)) continue;
         if ([...placed, ...out].some((v) => tileGap2(n, v, { x, y }) < 9)) continue;
-        cands.push({ x, y });
+        if (land.flatBlock(x, y, k)) cands.push({ x, y });
+        else spots.push({ x, y });
       }
     }
-    if (cands.length === 0) continue;
-    out.push({ ...cands[r.int(cands.length)], size });
+    if (cands.length > 0) {
+      out.push({ ...cands[r.int(cands.length)], size });
+      continue;
+    }
+    // The spots with the most of their square flat already, levelled to
+    // their lowest dry level. A spot whose levelling wears away the flat
+    // ground of a start or a vent already placed is put back as it was.
+    const flatCount = (t) => {
+      let flat = 0;
+      for (let dy = -k; dy <= k; dy++) for (let dx = -k; dx <= k; dx++) if (land.flat(t.x + dx, t.y + dy, land.at(t.x, t.y))) flat++;
+      return flat;
+    };
+    const ranked = spots.map((t) => ({ t, flat: flatCount(t), tie: r.unit() })).sort((p, q) => q.flat - p.flat || p.tie - q.tie);
+    const keep = [...starts.map((t) => ({ ...t, k: 2 })), ...[...placed, ...out].map((v) => ({ ...v, k: v.size === 'large' ? 2 : 1 }))];
+    for (const { t } of ranked.slice(0, 20)) {
+      const was = land.copy();
+      let level = 3;
+      for (let dy = -k; dy <= k + 1; dy++) for (let dx = -k; dx <= k + 1; dx++) level = Math.min(level, Math.max(GROUND, land.at(t.x + dx, t.y + dy)));
+      for (const im of images(t)) land.flatten(im.x, im.y, k, level);
+      land.prune();
+      land.sanitize();
+      if (land.flatBlock(t.x, t.y, k) && keep.every((v) => land.flatBlock(v.x, v.y, v.k))) {
+        out.push({ ...t, size });
+        break;
+      }
+      land.restore(was);
+    }
   }
   return out;
 }
@@ -493,18 +575,27 @@ function placeCraters(land, count, r, ok, starts, vents) {
   const n = land.n;
   const out = [];
   for (let k = 0; k < count; k++) {
-    const cands = [];
-    for (let y = 0; y < n; y++) {
-      for (let x = 0; x < n; x++) {
-        if (!ok(x, y) || !land.flatBlock(x, y, 1)) continue;
-        if ([...starts, ...vents, ...out.map((c) => c.tile)].some((t) => tileGap2(n, t, { x, y }) < 9)) continue;
-        cands.push({ x, y });
+    // Where hills leave no room 3 tiles from every vent, a smaller crater
+    // may sit 2 tiles from one (D61).
+    let cands = [];
+    let small = false;
+    for (const ventGap of [9, 5]) {
+      for (let y = 0; y < n; y++) {
+        for (let x = 0; x < n; x++) {
+          if (!ok(x, y) || !land.flatBlock(x, y, 1)) continue;
+          if ([...starts, ...out.map((c) => c.tile)].some((t) => tileGap2(n, t, { x, y }) < 9)) continue;
+          if (vents.some((t) => tileGap2(n, t, { x, y }) < ventGap)) continue;
+          cands.push({ x, y });
+        }
       }
+      if (cands.length > 0) break;
+      small = true;
     }
     if (cands.length === 0) break;
     const t = cands[r.int(cands.length)];
-    // Within the flat 3-tile square: radius 40 to 80 px, nudged a little.
-    const radius = 40 + r.int(41);
+    // Within the flat 3-tile square: radius 40 to 80 px (40 to 50 for a
+    // small one), nudged a little.
+    const radius = 40 + r.int(small ? 11 : 41);
     const room = 90 - radius;
     const nudge = () => r.int(2 * Math.min(10, room) + 1) - Math.min(10, room);
     out.push({ tile: t, x: center(t.x) + nudge(), y: center(t.y) + nudge(), r: radius });
@@ -530,24 +621,30 @@ export function startGroups(a, b, c, d) {
 function mirrorMap(s, r) {
   const n = s.tiles;
   const q = n / 2;
-  const land = new Land(n);
   // The quarter's corners, 0 to q each way: the corners on its edges are
   // their own mirror images.
-  const quarter = levels(q + 1, q + 1, s, r, false);
-  for (let y = 0; y <= q; y++) for (let x = 0; x <= q; x++) land.set(x, y, quarter[y * (q + 1) + x]);
-  land.mirror();
-  land.prune();
+  const noiseQ = fields(q + 1, q + 1, s, r, false);
   const inQuarter = (x, y) => x >= 0 && y >= 0 && x < q && y < q;
   // The start: near the middle of the quarter.
   const spread = Math.max(1, Math.floor(q / 6));
   const st = { x: Math.floor(q / 2) + r.int(2 * spread + 1) - spread, y: Math.floor(q / 2) + r.int(2 * spread + 1) - spread };
   const flip = (t, fx, fy) => ({ x: fx ? n - 1 - t.x : t.x, y: fy ? n - 1 - t.y : t.y });
   const quarters = [[false, false], [true, false], [false, true], [true, true]];
-  for (const [fx, fy] of quarters) {
-    const t = flip(st, fx, fy);
-    land.flatten(t.x, t.y);
-  }
-  land.prune();
+  // The starts are flattened before the land is measured, so the hills
+  // they take are made up elsewhere.
+  const land = shaped((cut, cutPeak) => {
+    const built = new Land(n);
+    const quarter = levels(noiseQ, cut, cutPeak);
+    for (let y = 0; y <= q; y++) for (let x = 0; x <= q; x++) built.set(x, y, quarter[y * (q + 1) + x]);
+    built.mirror();
+    built.prune();
+    for (const [fx, fy] of quarters) {
+      const t = flip(st, fx, fy);
+      built.flatten(t.x, t.y);
+    }
+    built.prune();
+    return built;
+  }, s);
   const clear = (x, y) => inQuarter(x, y) && tileGap2(n, st, { x, y }) > 8;
   addChannels(land, Math.round((CHANNELS_PER_1024[s.water] * n * n) / 1024 / 4), r, clear);
   addPonds(land, Math.round((PONDS_PER_1024[s.water] * n * n) / 1024 / 4), r, clear);
@@ -556,7 +653,7 @@ function mirrorMap(s, r) {
   // Vents in the quarter, clear of its edges so mirrored vents stay apart.
   const count = Math.max(1, Math.round((VENTS_PER_1024[s.energy] * n * n) / 1024 / 4));
   const inner = (x, y) => x >= 2 && y >= 2 && x < q - 2 && y < q - 2;
-  const vents = placeVents(land, ventSizes(count, s.energy, r), r, inner, [st]);
+  const vents = placeVents(land, ventSizes(count, s.energy, r), r, inner, [st], [], (t) => quarters.map(([fx, fy]) => flip(t, fx, fy)));
   const craters = placeCraters(land, Math.round((CRATERS_PER_1024[s.terrain] * n * n) / 1024 / 4) || 1, r, inner, [st], vents);
   const size = n * TILE_PX;
   const allVents = vents.flatMap((v) => quarters.map(([fx, fy]) => ({ ...flip(v, fx, fy), size: v.size })));
@@ -567,9 +664,13 @@ function mirrorMap(s, r) {
 
 function grownMap(s, r) {
   const n = s.tiles;
-  const land = new Land(n);
-  land.c.set(levels(n, n, s, r, true));
-  land.prune();
+  const noiseN = fields(n, n, s, r, true);
+  const land = shaped((cut, cutPeak) => {
+    const built = new Land(n);
+    built.c.set(levels(noiseN, cut, cutPeak));
+    built.prune();
+    return built;
+  }, s);
   // Four starts, as far apart as can be: on dry, flat land if there is
   // any, else wherever is driest.
   const cands = [];

@@ -59,7 +59,7 @@ entries in `decisions.md` it relies on.
   Generated maps, Landforms (generated maps use all the pieces and water
   forms, and painted craters); 12 What the host chooses (the map list),
   When the game starts (a generated map).
-- **Decisions:** D16, D26, D41, D46, D47, D55.
+- **Decisions:** D16, D26, D41, D46, D47, D55, D61 (hillier maps).
 
 ## Flight and wind
 - **Files:** `src/rules/flight.js`, `src/rules/constants.js` (flight and

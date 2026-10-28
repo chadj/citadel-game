@@ -9,7 +9,7 @@ browser game (hot seat, replays, options and key rebinding, the
 narrow-screen layout), computer players, sound and the aide, fog of
 war, and online play (lobby, setup, lockstep games, taking back a seat
 after a dropped connection). `docs/provenance.md` says what each part
-implements; `docs/decisions.md` (D1 to D60) records every choice.
+implements; `docs/decisions.md` (D1 to D61) records every choice.
 
 Most recent work:
 - Landforms (D55): corner-level maps with cliffs, channels, ponds and
@@ -27,6 +27,9 @@ Most recent work:
 - Installing to a phone's or tablet's home screen, full screen and
   clear of notches (D60; asked for by the user, not from the spec).
 - On a phone's setup screen, a line between seats.
+- Hillier maps (D61): the Terrain steps raise more land and more
+  Mountains, measured on the finished map; the built-in maps were
+  regenerated and the two hand-drawn ones redrawn.
 
 ## Next: M11, Polish
 - **AI speed on large maps.** Thinking peaks around 4 to 7 s on
