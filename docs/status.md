@@ -9,7 +9,7 @@ browser game (hot seat, replays, options and key rebinding, the
 narrow-screen layout), computer players, sound and the aide, fog of
 war, and online play (lobby, setup, lockstep games, taking back a seat
 after a dropped connection). `docs/provenance.md` says what each part
-implements; `docs/decisions.md` (D1 to D66) records every choice;
+implements; `docs/decisions.md` (D1 to D67) records every choice;
 `docs/formats.md` describes replay files and map data.
 
 Most recent work:
@@ -49,6 +49,10 @@ Most recent work:
   Pages (D66): `tools/build-site.js`, a workflow that publishes it, and
   `ALLOWED_ORIGINS` on the server. The page downloads about 3 MB, from
   about 10.
+- The server stands up to bad requests and moves (D67, from a security
+  audit): a malformed web address, or a launch naming an item like
+  "toString", used to stop it; an error in a game now stops only that
+  game. Next: limits on messages, connections and games.
 - On iPhone, opened from the Home Screen, the game reaches the bottom of
   the screen: iOS 26 makes the page short by the status bar's height,
   and `src/client/main.js` makes up for it.

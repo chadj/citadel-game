@@ -252,7 +252,8 @@ entries in `decisions.md` it relies on.
   keeps every finished game's replay), D63 (games survive the server
   restarting), D65 (the server's backstop on the shot clock goes by the
   player's own clock, and pressing Launch holds it), D66 (the page
-  hosted apart from the game server).
+  hosted apart from the game server), D67 (bad requests and moves can't
+  stop the server; an error stops only its own game).
 - **Known gaps** (to come back to):
   - **Rejoining after a disconnect** isn't offered (the spec makes
     rejoining optional).

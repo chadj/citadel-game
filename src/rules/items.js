@@ -32,6 +32,12 @@ export const ITEMS = Object.freeze({
   worm: item(7, WEAPON, true),
 });
 
+// Whether `id` names one of the items: only the table's own names, so a
+// move naming "toString", say, is no item.
+export function isItem(id) {
+  return typeof id === 'string' && Object.hasOwn(ITEMS, id);
+}
+
 // The energy an item costs, in tenths.
 export function itemCost(id) {
   return ITEMS[id].level * 10;
@@ -39,8 +45,8 @@ export function itemCost(id) {
 
 // Whether a launcher of this kind can launch the item.
 export function canLaunch(launcherKind, id) {
+  if (!isItem(id)) return false;
   const it = ITEMS[id];
-  if (!it) return false;
   if (launcherKind === 'outpost') return true;
   if (launcherKind === 'battery') return it.battery;
   return false;

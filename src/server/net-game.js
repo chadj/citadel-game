@@ -42,9 +42,11 @@ export class NetGame {
     this.journal = journal;
     this.game = createGame(setup);
     this.now = now;
-    this.setTimer = setTimer;
+    // Everything a game does later goes through `guarded`, so an error
+    // in it stops this game, not the server.
+    this.setTimer = (fn, ms) => setTimer(() => this.guarded(fn), ms);
     this.clearTimer = clearTimer;
-    this.defer = defer;
+    this.defer = (fn) => defer(() => this.guarded(fn));
     this.onEnd = onEnd;
     this.moves = [];
     this.hashes = [hashState(this.game.state)];
@@ -114,6 +116,10 @@ export class NetGame {
   receive(conn, m) {
     const seat = this.seatOf(conn);
     if (!seat || seat.state === 'gone') return;
+    this.guarded(() => this.fromSeat(seat, m));
+  }
+
+  fromSeat(seat, m) {
     this.heard(seat);
     switch (m.t) {
       case 'move':
@@ -140,10 +146,15 @@ export class NetGame {
   // Moves ---------------------------------------------------------------
 
   // A move only counts if it's from the player whose turn it is (spec
-  // 12). A player can only move for themselves.
+  // 12). A player can only move for themselves. The rules check a
+  // launch; only its fields, of the right types, are passed on.
   fromPlayer(seat, move) {
     if (!move || typeof move !== 'object' || !['launch', 'pass', 'timeout'].includes(move.type)) return;
     if (move.player !== seat.player) return;
+    if (move.type === 'launch' && !(Number.isInteger(move.launcher) && typeof move.item === 'string' && Number.isInteger(move.heading) && Number.isInteger(move.power))) {
+      this.sendTo(seat.player, 'refused', { reason: 'that isn\'t a launch' });
+      return;
+    }
     const clean = move.type === 'launch'
       ? { type: 'launch', player: move.player, launcher: move.launcher, item: move.item, heading: move.heading, power: move.power, override: !!move.override }
       : { type: move.type, player: move.player };
@@ -354,6 +365,19 @@ export class NetGame {
     this.sendTo(seat.player, 'start', { setup: this.setup, you: seat.player, moves: this.moves });
     if (was === 'notResponding') this.broadcast('presence', { player: seat.player, state: 'back' });
     return true;
+  }
+
+  // Runs part of the game. An error here is a bug: the game it's in
+  // stops, its replay kept as far as it got, and the server carries on.
+  guarded(fn) {
+    try {
+      fn();
+    } catch (e) {
+      console.error(`game "${this.name}" stopped after an error:`, e);
+      if (this.ended) return;
+      this.broadcast('chat', { system: 'The server stopped this game after an error.' });
+      this.end();
+    }
   }
 
   end() {

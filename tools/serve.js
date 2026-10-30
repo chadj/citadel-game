@@ -59,9 +59,25 @@ const TYPES = {
 // Only the game's own files are served.
 const ALLOWED = ['index.html', 'manifest.webmanifest', 'src', join('node_modules', 'phaser', 'dist'), 'assets'];
 
-const server = createServer(async (req, res) => {
-  const url = new URL(req.url, 'http://localhost');
-  const path = normalize(decodeURIComponent(url.pathname)).replace(/^[/\\]+/, '') || 'index.html';
+// Nothing a request asks for may stop the server: an error answers
+// that request alone.
+const server = createServer((req, res) => {
+  serveFile(req, res).catch((e) => {
+    console.error(`${req.method} ${req.url}:`, e);
+    if (!res.headersSent) res.writeHead(500);
+    res.end();
+  });
+});
+
+async function serveFile(req, res) {
+  let path;
+  try {
+    path = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+  } catch {
+    res.writeHead(400).end('bad request');
+    return;
+  }
+  path = normalize(path).replace(/^[/\\]+/, '') || 'index.html';
   const file = resolve(ROOT, path);
   const allowed = ALLOWED.some((a) => file === join(ROOT, a) || file.startsWith(join(ROOT, a) + sep));
   if (!allowed) {
@@ -80,7 +96,7 @@ const server = createServer(async (req, res) => {
   } catch {
     res.writeHead(404).end('not found');
   }
-});
+}
 
 const keep = replayKeeper(REPLAY_DIR);
 const lobby = new Lobby({

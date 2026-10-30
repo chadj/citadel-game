@@ -1687,3 +1687,27 @@ on 2026-10-25. Exact numbers chosen during tuning go in
   - The site has the game's code (not the server's), its assets, the
     game's license and Phaser's.
 
+
+## D67. The server stands up to bad requests and moves
+- **Date:** 2026-10-30
+- **Spec:** none. Security the user asked for, from an audit of the
+  server; 12 (online play) is the nearest.
+- **Asked for:** nothing a player or a stranger sends should stop the
+  server, now that it's on the internet.
+- **Choice:**
+  - **Web requests:** a path that can't be decoded (such as a bad `%`
+    escape) is answered "400 bad request"; any other error answers
+    that request alone with a 500. Before, either stopped the server.
+  - **Item names:** the rules take only the item table's own names, so
+    a launch naming "toString" or "constructor" (names every
+    JavaScript object has) is refused as no such item. Before, it got
+    past the check and broke the game. Every move that was allowed
+    before still is, so `RULES_VERSION` is unchanged.
+  - **Moves:** the server passes a launch to the rules only if its
+    launcher, heading and power are whole numbers and its item a name;
+    otherwise the player is told it was refused.
+  - **An error in a game** (a bug, since moves are checked) stops that
+    game alone, wherever it happens: in a player's message, a timer or
+    a computer's thinking. Its players get the chat line "The server
+    stopped this game after an error.", its replay is kept as far as
+    it got, and the server carries on.

@@ -37,6 +37,8 @@ test('launches that don\'t count leave the game unchanged', () => {
   assert.match(launch({ player: 1, launcher: other }).reason, /isn't that player's turn/);
   assert.match(launch({ launcher: other }).reason, /isn't one of your launchers/);
   assert.match(launch({ item: 'castle' }).reason, /no such item/);
+  // Names every object has aren't items either.
+  for (const item of ['toString', 'constructor', '__proto__', 'hasOwnProperty']) assert.match(launch({ item }).reason, /no such item/);
   assert.match(launch({ heading: 360 }).reason, /heading/);
   assert.match(launch({ heading: 1.5 }).reason, /heading/);
   assert.match(launch({ power: 1001 }).reason, /power/);

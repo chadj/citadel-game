@@ -206,6 +206,49 @@ test('moves go to everyone, numbered, only from the player whose turn it is', ()
   assert.equal(host.last('desync').n, 1);
 });
 
+test('a launch with fields of the wrong kind is refused, and nothing is played', () => {
+  const t = started();
+  const local = createGame(t.setup);
+  const first = local.state.turn.player;
+  const mover = first === 0 ? t.host : t.guest;
+  const launcher = local.state.units.find((u) => u.owner === first).id;
+  const launch = { type: 'launch', player: first, launcher, item: 'shell', heading: 10, power: 500 };
+  for (const odd of [{ item: 'toString' }, { item: ['shell'] }, { launcher: String(launcher) }, { heading: '10' }, { power: null }]) {
+    mover.say('move', { move: { ...launch, ...odd } });
+    assert.ok(mover.last('refused'), JSON.stringify(odd));
+    mover.got.length = 0;
+  }
+  // The game goes on: the player's silence later is only a disconnect.
+  t.time.pass(DISCONNECT_MS + 2 * PING_MS);
+  assert.equal(t.host.all('move').length + t.guest.all('move').length > 0, true);
+  assert.equal((first === 0 ? t.guest : t.host).last('move').move.type, 'disconnect');
+});
+
+test('an error in a game stops that game alone, and its replay is kept', () => {
+  const kept = [];
+  const t = started({ onReplay: (replay) => kept.push(replay) });
+  const game = [...t.lobby.games][0];
+  const first = game.game.state.turn.player;
+  const mover = first === 0 ? t.host : t.guest;
+  game.settle = () => {
+    throw new Error('a bug');
+  };
+  const quiet = console.error;
+  console.error = () => {};
+  try {
+    mover.say('move', { move: { type: 'pass', player: first } });
+    assert.match(t.host.last('chat').system, /stopped this game/);
+    assert.match(t.guest.last('chat').system, /stopped this game/);
+    assert.equal(kept.length, 1);
+    // Nothing more happens in it, and its timers don't throw.
+    mover.say('move', { move: { type: 'pass', player: 1 - first } });
+    t.time.pass(DISCONNECT_MS + 2 * PING_MS);
+  } finally {
+    console.error = quiet;
+  }
+  assert.equal(t.host.all('move').length, 0);
+});
+
 test('chat goes only to the players who get it', () => {
   const { host, guest } = started();
   host.say('chat', { to: 'all', text: 'good luck' });

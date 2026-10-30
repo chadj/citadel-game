@@ -23,7 +23,7 @@ import { loadMap } from './terrain/map.js';
 import { sampleTerrain, tileIndex } from './terrain/terrain.js';
 import { launch, makeWind } from './flight.js';
 import { checkSetup } from './setup.js';
-import { ITEMS, BUILDING, itemCost, canLaunch } from './items.js';
+import { ITEMS, BUILDING, itemCost, canLaunch, isItem } from './items.js';
 import {
   UNIT_KINDS, addUnit, findUnit, unitTop, isWorking, isLauncher, citadelOf, hasWorkingLauncher,
 } from './units.js';
@@ -162,7 +162,7 @@ function launchMove(game, move) {
   const launcher = findUnit(s, move.launcher);
   if (!launcher || launcher.owner !== player || !isLauncher(launcher)) return refuse('that isn\'t one of your launchers');
   if (!isWorking(s, launcher)) return refuse('that launcher is disabled');
-  if (!ITEMS[move.item]) return refuse('no such item');
+  if (!isItem(move.item)) return refuse('no such item');
   if (!canLaunch(launcher.kind, move.item)) return refuse('a Battery launches only the attacking weapons');
   const cost = itemCost(move.item);
   if (s.players[player].energy < cost) return refuse('not enough energy');
