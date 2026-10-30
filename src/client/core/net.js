@@ -125,11 +125,12 @@ export class Net {
       else if (m.t === 'move' && this.early) this.early.push(m);
       this.emit(m);
     });
-    ws.addEventListener('close', () => {
+    // The server may say why it closed the connection (D67).
+    ws.addEventListener('close', (ev) => {
       const was = this.open;
       this.open = false;
       if (this.closed) return;
-      if (was) this.emit({ t: 'disconnected' });
+      if (was) this.emit({ t: 'disconnected', reason: ev.reason || null });
       setTimeout(() => this.connect(), RETRY_MS);
     });
   }

@@ -15,6 +15,11 @@
 // to the sites whose pages may connect, separated by commas, such as
 // https://example.github.io (an address only: no path). Unset, any page
 // may.
+//
+// The lobby limits connections from each address (D67). Behind a reverse
+// proxy every connection comes from the proxy, so set TRUSTED_PROXIES to
+// its addresses, separated by commas: the player's own address is then
+// the last one the proxy adds to X-Forwarded-For.
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -31,7 +36,10 @@ const ROOT = resolve(import.meta.dirname, '..');
 const PORT = Number(process.env.PORT ?? 8080);
 const REPLAY_DIR = resolve(process.env.REPLAY_DIR ?? join(ROOT, 'replays'));
 const GAMES_DIR = resolve(process.env.GAMES_DIR ?? join(ROOT, 'games'));
-const ORIGINS = (process.env.ALLOWED_ORIGINS ?? '').split(',').map((o) => o.trim().replace(/\/+$/, '')).filter(Boolean);
+const list = (v) => (v ?? '').split(',').map((o) => o.trim()).filter(Boolean);
+const ORIGINS = list(process.env.ALLOWED_ORIGINS).map((o) => o.replace(/\/+$/, ''));
+const plain = (address) => String(address ?? '').replace(/^::ffff:/, '');
+const PROXIES = list(process.env.TRUSTED_PROXIES).map(plain);
 // Text is sent compressed to browsers that take it: Phaser shrinks from
 // about 9 MB to 2.
 const COMPRESS = new Set(['.html', '.js', '.json', '.webmanifest', '.css', '.svg']);
@@ -118,10 +126,16 @@ for (const { name, why } of ended) console.log(`game not carried on: ${name}: ${
 // set, only those sites' pages may.
 const verifyClient = ORIGINS.length === 0 ? undefined : ({ origin }) => !origin || ORIGINS.includes(origin);
 const sockets = new WebSocketServer({ server, path: NET_PATH, maxPayload: 64 * 1024, verifyClient });
-sockets.on('connection', (ws) => {
+function addressOf(req) {
+  const own = plain(req.socket.remoteAddress);
+  if (!PROXIES.includes(own)) return own;
+  const forwarded = list(req.headers['x-forwarded-for']);
+  return forwarded.length > 0 ? plain(forwarded[forwarded.length - 1]) : own;
+}
+sockets.on('connection', (ws, req) => {
   const conn = lobby.connect((text) => {
     if (ws.readyState === ws.OPEN) ws.send(text);
-  });
+  }, { address: addressOf(req), close: (reason) => ws.close(1008, reason) });
   ws.on('message', (data) => {
     try {
       lobby.receive(conn, data.toString());
@@ -135,4 +149,5 @@ sockets.on('connection', (ws) => {
 server.listen(PORT, () => {
   console.log(`Lunar Citadel: http://localhost:${PORT}`);
   if (ORIGINS.length > 0) console.log(`pages that may connect: ${ORIGINS.join(', ')}`);
+  if (PROXIES.length > 0) console.log(`players' addresses taken from the proxies at ${PROXIES.join(', ')}`);
 });

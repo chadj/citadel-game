@@ -6,7 +6,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Lobby } from '../../src/server/lobby.js';
+import { Lobby, LIMITS } from '../../src/server/lobby.js';
 import { encode, NOT_RESPONDING_MS, DISCONNECT_MS, PING_MS } from '../../src/net/protocol.js';
 import { createGame, applyMove, settle } from '../../src/rules/game.js';
 import { hashState } from '../../src/rules/hash.js';
@@ -408,4 +408,97 @@ test('kept replays are files the Replays screen opens, and never overwrite each 
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+// Limits on what anyone can ask of the server (D67).
+
+function from(lobby, address, name = 'Pat') {
+  const c = { got: [], closed: null };
+  c.conn = lobby.connect((text) => c.got.push(JSON.parse(text)), {
+    address,
+    close: (reason) => {
+      c.closed = reason;
+      lobby.close(c.conn);
+    },
+  });
+  c.say = (t, fields) => lobby.receive(c.conn, encode(t, fields));
+  c.last = (t) => [...c.got].reverse().find((m) => m.t === t);
+  c.say('hello', { name });
+  return c;
+}
+
+const quietly = (fn) => {
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    return fn();
+  } finally {
+    console.warn = warn;
+  }
+};
+
+test('connections are limited from each address, and in all', () => quietly(() => {
+  const lobby = new Lobby({ ...clock(), limits: { perAddress: 2, connections: 3 } });
+  const a = from(lobby, '1.1.1.1');
+  from(lobby, '1.1.1.1');
+  const third = from(lobby, '1.1.1.1');
+  assert.match(third.closed, /too many connections/i);
+  assert.equal(third.last('welcome'), undefined);
+  from(lobby, '2.2.2.2');
+  assert.match(from(lobby, '3.3.3.3').closed, /full/);
+  // One closing makes room for another.
+  lobby.close(a.conn);
+  assert.equal(from(lobby, '1.1.1.1').closed, null);
+  assert.equal(lobby.conns.size, 3);
+}));
+
+test('a connection sending too many messages is closed', () => quietly(() => {
+  const time = clock();
+  const lobby = new Lobby({ ...time });
+  const c = from(lobby, '1.1.1.1');
+  for (let k = 1; k < LIMITS.burst; k++) c.say('ping');
+  assert.equal(c.closed, null);
+  // The budget comes back with time.
+  time.pass(1000);
+  for (let k = 0; k < LIMITS.messages; k++) c.say('ping');
+  assert.equal(c.closed, null);
+  c.say('ping');
+  assert.match(c.closed, /too many messages/i);
+  assert.equal(lobby.conns.size, 0);
+  // Nothing more it sends is heard.
+  c.say('lobby');
+  assert.equal(c.last('games'), undefined);
+}));
+
+test('games waiting and under way are limited, and how often an address starts one', () => {
+  const time = clock();
+  const lobby = new Lobby({ ...time, random: () => 0.5, limits: { rooms: 2, games: 2 } });
+  const versus = [{}, { kind: 'computer', personality: 'random' }];
+  const hostAndStart = (c) => {
+    c.say('host', { name: 'Game', settings: SETTINGS });
+    c.say('setHost', { settings: SETTINGS, seats: versus });
+    c.say('start');
+    return c.last('start') !== undefined;
+  };
+  const a = from(lobby, '1.1.1.1', 'Ana');
+  const b = from(lobby, '2.2.2.2', 'Bo');
+  const c = from(lobby, '3.3.3.3', 'Cy');
+  a.say('host', { name: 'One', settings: SETTINGS });
+  b.say('host', { name: 'Two', settings: SETTINGS });
+  c.say('host', { name: 'Three', settings: SETTINGS });
+  assert.match(c.last('error').reason, /as many games waiting/);
+  // A host hosting again replaces their own setup.
+  a.say('host', { name: 'One again', settings: SETTINGS });
+  assert.equal(lobby.rooms.size, 2);
+  b.say('leave');
+
+  assert.ok(hostAndStart(a));
+  // The same address waits before starting another.
+  const a2 = from(lobby, '1.1.1.1', 'Ana');
+  assert.equal(hostAndStart(a2), false);
+  assert.match(a2.last('error').reason, /wait a few seconds/i);
+  time.pass(LIMITS.startGapMs);
+  assert.ok(hostAndStart(a2));
+  assert.equal(hostAndStart(b), false);
+  assert.match(b.last('error').reason, /as many games as it can/);
 });

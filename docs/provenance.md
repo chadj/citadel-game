@@ -253,12 +253,13 @@ entries in `decisions.md` it relies on.
   restarting), D65 (the server's backstop on the shot clock goes by the
   player's own clock, and pressing Launch holds it), D66 (the page
   hosted apart from the game server), D67 (bad requests and moves can't
-  stop the server; an error stops only its own game).
+  stop the server; an error stops only its own game; limits on
+  connections, messages and games).
 - **Known gaps** (to come back to):
   - **Rejoining after a disconnect** isn't offered (the spec makes
     rejoining optional).
-  - **No accounts or security:** anyone who can reach the server can
-    list and join its games. It's meant for friends on a network.
+  - **No accounts:** anyone who can reach the server can list and join
+    its games. D67 keeps what one person can ask of it in bounds.
   - **A setup screen chat line** sent just as a player joins can be
     missed by them.
   - **Check 2 across devices** hasn't been run on different browsers

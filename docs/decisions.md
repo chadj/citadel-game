@@ -1711,3 +1711,24 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     a computer's thinking. Its players get the chat line "The server
     stopped this game after an error.", its replay is kept as far as
     it got, and the server carries on.
+  - **Limits** (in `src/server/lobby.js`, `LIMITS`), so one person
+    can't take the server over:
+    - 400 connections at once in all, and 8 from one address (enough
+      for a household's tabs). Past them, a connection is closed at
+      once with the reason, which the lobby screen shows; the tab tries
+      again every 2 seconds, as after any lost connection.
+    - 20 messages a second from a connection, after a burst of 60 (a
+      player sends a ping every 5 seconds and a hash after each move).
+      A connection sending more is closed; its tab connects again and
+      takes back its seat, as after a dropped connection.
+    - 50 setups waiting for players, and 20 games under way. Hosting
+      or starting past them is refused, saying so.
+    - A game started from an address at most every 10 seconds: making
+      the map for a large generated game takes the server up to a
+      quarter of a second, and a game whose only human quits ends at
+      once (spec 03), so starting and quitting over and over would
+      keep the server busy.
+  - **A player's address:** behind a reverse proxy every connection
+    comes from the proxy. `TRUSTED_PROXIES` lists the proxies' addresses;
+    a connection from one is taken to be from the last address in its
+    `X-Forwarded-For`, the one the proxy added.

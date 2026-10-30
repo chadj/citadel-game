@@ -49,7 +49,7 @@ export class LobbyScene extends BaseScene {
         this.status.setText('');
         net.send('lobby');
       }),
-      net.on('disconnected', () => this.status.setText('Lost touch with the server. Trying again…')),
+      net.on('disconnected', (m) => this.status.setText(`${m.reason ?? 'Lost touch with the server.'} Trying again…`)),
       net.on('error', (m) => this.status.setText(m.reason)),
       net.on('room', (m) => this.scene.start('setup', { online: { net, room: m.room, you: m.you, host: m.host } })),
       // Taking back a seat in a game that's under way.

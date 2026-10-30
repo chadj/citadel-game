@@ -52,7 +52,9 @@ Most recent work:
 - The server stands up to bad requests and moves (D67, from a security
   audit): a malformed web address, or a launch naming an item like
   "toString", used to stop it; an error in a game now stops only that
-  game. Next: limits on messages, connections and games.
+  game. Limits on connections (8 an address), messages (20 a second),
+  games waiting and under way, and how often an address starts a game;
+  `TRUSTED_PROXIES` for the player's address behind a reverse proxy.
 - On iPhone, opened from the Home Screen, the game reaches the bottom of
   the screen: iOS 26 makes the page short by the status bar's height,
   and `src/client/main.js` makes up for it.

@@ -9,6 +9,10 @@
 // It doesn't touch sockets: each connection is { send(text) }, and the
 // socket code hands it what arrives (tools/serve.js).
 //
+// It limits what anyone can ask of it (D67), so one person can't take
+// the server over: connections, messages, games waiting and under way,
+// and how often games start.
+//
 // Games under way survive the server restarting (D63): with a `store`
 // (game-store.js), each game is written down as it's played, and
 // `restoreGames()` takes them up again when the server starts. Setups
@@ -28,6 +32,16 @@ import { RULES_VERSION } from '../rules/version.js';
 import { NetGame } from './net-game.js';
 
 export const GENERATED = 'Generated';
+// `limits` in the constructor changes any of these.
+export const LIMITS = Object.freeze({
+  connections: 400, // at once, in all
+  perAddress: 8, // at once, from one address
+  messages: 20, // a second from one connection, once its burst is used
+  burst: 60,
+  rooms: 50, // setups waiting for players
+  games: 20, // games under way
+  startGapMs: 10000, // between games started from one address
+});
 const CLOCKS = [0, 15, 30, 60];
 const TEAMS = [null, 'A', 'B', 'C'];
 const GENERATOR_VALUES = {
@@ -56,25 +70,48 @@ export class Lobby {
   // and `onReplay(replay, name)`, called with each finished game's
   // replay (D62). `store` is where games under way are written down
   // (D63), or none.
-  constructor({ store = null, ...options } = {}) {
+  constructor({ store = null, limits = {}, ...options } = {}) {
     this.options = options;
     this.store = store;
+    this.limits = { ...LIMITS, ...limits };
     this.random = options.random ?? Math.random;
+    this.now = options.now ?? Date.now;
     this.conns = new Set();
+    this.addresses = new Map(); // connections from each address
+    this.lastStart = new Map(); // when each address last started a game
     this.rooms = new Map();
     this.games = new Set();
     this.watching = new Set(); // connections on the lobby screen
     this.nextId = 1;
   }
 
-  connect(send) {
-    const conn = { id: this.nextId++, send, name: 'Player', token: null, room: null, game: null, seat: null };
+  // A new connection. `close(reason)` closes its socket, and `address`
+  // is where it's from (null for none). Past the limits it's closed at
+  // once, saying why.
+  connect(send, { close = () => {}, address = null } = {}) {
+    const conn = { id: this.nextId++, send, close, address, name: 'Player', token: null, room: null, game: null, seat: null, budget: this.limits.burst, budgetAt: this.now() };
+    const full = this.conns.size >= this.limits.connections ? 'The server is full. Try again later.'
+      : address !== null && (this.addresses.get(address) ?? 0) >= this.limits.perAddress ? 'Too many connections from your address.'
+        : null;
+    if (full) {
+      conn.refused = true;
+      console.warn(`refused a connection${address ? ` from ${address}` : ''}: ${full}`);
+      close(full);
+      return conn;
+    }
     this.conns.add(conn);
+    if (address !== null) this.addresses.set(address, (this.addresses.get(address) ?? 0) + 1);
     return conn;
   }
 
   close(conn) {
+    if (!this.conns.has(conn)) return;
     this.conns.delete(conn);
+    if (conn.address !== null) {
+      const n = this.addresses.get(conn.address) - 1;
+      if (n > 0) this.addresses.set(conn.address, n);
+      else this.addresses.delete(conn.address);
+    }
     this.watching.delete(conn);
     if (conn.room) this.leaveRoom(conn);
     // A player in a game keeps their seat for now: they may come back
@@ -83,6 +120,7 @@ export class Lobby {
   }
 
   receive(conn, data) {
+    if (conn.refused || !this.withinBudget(conn)) return;
     const m = decode(data);
     if (!m) return;
     if (conn.game) {
@@ -91,6 +129,22 @@ export class Lobby {
     }
     const handler = this[`on_${m.t}`];
     if (handler) handler.call(this, conn, m);
+  }
+
+  // A connection sending more than its share of messages is closed. Its
+  // player's tab connects again, and takes back their seat in a game.
+  withinBudget(conn) {
+    const t = this.now();
+    conn.budget = Math.min(this.limits.burst, conn.budget + ((t - conn.budgetAt) * this.limits.messages) / 1000);
+    conn.budgetAt = t;
+    if (conn.budget >= 1) {
+      conn.budget -= 1;
+      return true;
+    }
+    conn.refused = true;
+    console.warn(`closed a connection sending too many messages${conn.address ? `, from ${conn.address}` : ''}`);
+    conn.close('Too many messages.');
+    return false;
   }
 
   send(conn, t, fields) {
@@ -148,6 +202,10 @@ export class Lobby {
   // Hosting and joining -------------------------------------------------
 
   on_host(conn, m) {
+    if (conn.room?.host !== conn && this.rooms.size >= this.limits.rooms) {
+      this.send(conn, 'error', { reason: 'The server has as many games waiting as it can take. Join one, or try again later.' });
+      return;
+    }
     if (conn.room) this.leaveRoom(conn);
     this.watching.delete(conn);
     const prefs = m.me ?? {};
@@ -347,6 +405,20 @@ export class Lobby {
     if (problem) {
       this.send(conn, 'error', { reason: problem });
       return;
+    }
+    if (this.games.size >= this.limits.games) {
+      this.send(conn, 'error', { reason: 'The server is running as many games as it can. Try again in a while.' });
+      return;
+    }
+    // A game's map can take the server a moment to make.
+    const t = this.now();
+    for (const [address, at] of this.lastStart) if (t - at >= this.limits.startGapMs) this.lastStart.delete(address);
+    if (conn.address !== null) {
+      if (this.lastStart.has(conn.address)) {
+        this.send(conn, 'error', { reason: 'Wait a few seconds before starting another game.' });
+        return;
+      }
+      this.lastStart.set(conn.address, t);
     }
     // The random choices are made once, here, and everyone gets them
     // (spec 12, When the game starts).
