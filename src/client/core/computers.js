@@ -9,9 +9,21 @@ import { Brain } from '../../ai/brain.js';
 import { PERSONALITIES as LIST, RANDOM } from '../../ai/personalities.js';
 import { findMap, startPositions } from './maps.js';
 
+// About how hard each one is to beat, shown beside its name (decision
+// D64): seven personalities in five steps.
+const LEVELS = {
+  warden: 'Expert',
+  forge: 'Hard',
+  lancer: 'Hard',
+  mason: 'Medium',
+  sentry: 'Medium',
+  raider: 'Easy',
+  drifter: 'Novice',
+};
+
 export const PERSONALITIES = Object.freeze([
-  { id: RANDOM, name: 'Random' },
-  ...LIST.map(({ id, name }) => ({ id, name })),
+  { id: RANDOM, name: 'Random', label: 'Random' },
+  ...LIST.map(({ id, name }) => ({ id, name, level: LEVELS[id], label: `${name} · ${LEVELS[id]}` })),
 ]);
 
 // The start positions the game's map offers, in every layout: the

@@ -330,7 +330,7 @@ export class SetupScene extends BaseScene {
         row.faction.setEnabled(mine || (this.isHost && seat.kind === 'computer'));
         row.color.setEnabled(mine || (this.isHost && seat.kind === 'computer'));
       }
-      const personality = PERSONALITIES.find((p) => p.id === seat.personality)?.name ?? 'Random';
+      const personality = PERSONALITIES.find((p) => p.id === seat.personality)?.label ?? 'Random';
       row.personality.setVisible(seat.kind === 'computer').setText(personality);
       for (const k of ['faction', 'color', 'team']) row[k].setVisible(used);
       row.swatch.setVisible(used);

@@ -87,3 +87,11 @@ it in the spec, at the end of "Rejoining" add:
 >   turn under way starts again. Games set up but not started close.
 >   A game made under different rules can't carry on; its replay is
 >   kept.
+
+## 12 — Computer players: showing their level (D64)
+A feature the user asked for, not yet in the spec. In "Computer
+players", after "For each, the host picks a personality, from hardest
+to easiest, or a random one (chapter 09).", add:
+
+> Each personality shows about how hard it is to beat, beside its name.
+

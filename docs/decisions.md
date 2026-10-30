@@ -1606,3 +1606,24 @@ on 2026-10-25. Exact numbers chosen during tuning go in
   don't hold it either). Open tabs keep the code they loaded: after a
   change to the rules, raise `RULES_VERSION`, or games carried on could
   go out of step with tabs running the old rules.
+
+## D64. Showing how hard each computer is
+- **Date:** 2026-10-29
+- **Spec:** none. A feature the user asked for; 12 Computer players and
+  09 Personalities are the nearest. The spec lists personalities from
+  hardest to easiest but doesn't say the setup shows how hard each is.
+- **Asked for:** when choosing a computer's personality in the setup,
+  show its approximate difficulty too.
+- **Choice:** the personality button reads its name and a level, as
+  "Mason · Medium". Seven personalities (D44) in five steps:
+
+  | Personality | Level |
+  |---|---|
+  | Warden | Expert |
+  | Forge, Lancer | Hard |
+  | Mason, Sentry | Medium |
+  | Raider | Easy |
+  | Drifter | Novice |
+
+  Random stays "Random". The levels are presentation only
+  (`src/client/core/computers.js`); the computers play as before.

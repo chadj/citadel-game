@@ -9,7 +9,7 @@ browser game (hot seat, replays, options and key rebinding, the
 narrow-screen layout), computer players, sound and the aide, fog of
 war, and online play (lobby, setup, lockstep games, taking back a seat
 after a dropped connection). `docs/provenance.md` says what each part
-implements; `docs/decisions.md` (D1 to D63) records every choice;
+implements; `docs/decisions.md` (D1 to D64) records every choice;
 `docs/formats.md` describes replay files and map data.
 
 Most recent work:
@@ -35,6 +35,8 @@ Most recent work:
   hosting (now just under the list) fits the screen.
 - On a phone's game summary, the table turns on its side (a column for
   each player), and the save buttons go under the replay's name.
+- In the setup, each computer's personality shows its level, as
+  "Mason · Medium" (D64).
 - On iPhone, opened from the Home Screen, the game reaches the bottom of
   the screen: iOS 26 makes the page short by the status bar's height,
   and `src/client/main.js` makes up for it.
@@ -84,7 +86,7 @@ Most recent work:
 
 ## Waiting on the user
 - `docs/spec-changes.md` has proposed spec wording for D38, D42, D53,
-  D55, D56, D59, D60 and D63. The user applies it to `spec/`.
+  D55, D56, D59, D60, D63 and D64. The user applies it to `spec/`.
 
 ## Checking work by hand
 - `npm start`, then open http://localhost:8080. For an online game,
