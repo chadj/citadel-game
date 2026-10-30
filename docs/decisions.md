@@ -1136,7 +1136,8 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     clock running from when the turn started on their screen. The
     server steps in with a timeout only if none has come 10 s after it
     should have (allowing for how long the move before takes to play
-    out), so a slow connection never shortens a turn.
+    out), so a slow connection never shortens a turn. (D65: it now goes by
+    the player's own clock, and pressing Launch holds it.)
   - **Losing touch:** machines ping every 5 s. After 60 s of silence
     the others are told the player isn't responding (chat line, aide,
     and a note by the order of play); after 120 s the server sends a
@@ -1627,3 +1628,30 @@ on 2026-10-25. Exact numbers chosen during tuning go in
 
   Random stays "Random". The levels are presentation only
   (`src/client/core/computers.js`); the computers play as before.
+
+## D65. The server's backstop goes by the player's own clock
+- **Date:** 2026-10-29
+- **Spec:** 03 The shot clock ("Pressing Launch stops the clock"); 12
+  Every machine plays the same game ("The shot clock must be fair").
+- **Found:** online, a player pressed Launch near the end of their turn
+  and the turn timed out while they held it. The server's backstop
+  (D52) counted from when the turn should have shown on their machine,
+  and knew nothing of Launch. A machine that fell behind (a phone in the
+  background during the shot before, or drawing slowly) starts its
+  clock late, so the backstop could run out while its own clock still
+  had time, even with Launch pressed.
+- **Choice:**
+  - The turn's player's machine tells the server when its clock starts
+    and when Launch is pressed: `clock { n, at: 'start' | 'press' }`.
+  - **Start:** the backstop becomes that moment plus the turn's limit
+    and the 10 s of grace, if that's later. It's taken once a turn.
+  - **Press:** the backstop moves later by the longest Launch can be
+    held (the meter runs up and back down, about 2.5 s, then fires).
+    Up to ten presses a turn count.
+  - The backstop only ever moves later, never past a disconnection's
+    wait (two minutes) beyond where it began. Only the turn's player's
+    messages, for the turn under way, count.
+  - The turn's player's machine still sends the timeout itself; the
+    others still show the clock from when the turn started on their
+    screens.
+

@@ -261,6 +261,55 @@ test('the server keeps a backstop on the shot clock', () => {
   assert.deepEqual(timeout?.move, { type: 'timeout', player: first });
 });
 
+// The turn's player, and the other player.
+function turnOf({ host, guest, setup }) {
+  const first = createGame(setup).state.turn.player;
+  return { first, mover: first === 0 ? host : guest, other: first === 0 ? guest : host };
+}
+const timedOut = (c) => c.all('move').some((m) => m.move.type === 'timeout');
+
+test('the backstop goes by the player\'s own clock, so a machine that fell behind isn\'t cut short (D65)', () => {
+  const t = started();
+  const { mover, other } = turnOf(t);
+  // The turn shows late on the player's machine (it was in the
+  // background, say): its clock starts 30 s after the server expected.
+  t.time.pass(31500);
+  mover.say('clock', { n: 0, at: 'start' });
+  other.say('ping');
+  // The usual backstop (1.5 + 33 + 10 s) has passed; this one hasn't.
+  t.time.pass(40000);
+  mover.say('ping');
+  other.say('ping');
+  assert.equal(timedOut(t.host), false);
+  // 33 s of the player's clock, and 10 s of grace.
+  t.time.pass(3500);
+  assert.equal(timedOut(t.host), true);
+});
+
+test('pressing Launch holds the backstop for as long as the meter can run (D65)', () => {
+  const t = started();
+  const { mover } = turnOf(t);
+  t.time.pass(44000);
+  mover.say('clock', { n: 0, at: 'press' });
+  // The usual backstop (44.5 s), plus about 2.5 s.
+  t.time.pass(2500);
+  assert.equal(timedOut(t.host), false);
+  t.time.pass(1000);
+  assert.equal(timedOut(t.host), true);
+});
+
+test('a clock message never brings the backstop forward, and only the turn\'s player\'s counts (D65)', () => {
+  const t = started();
+  const { mover, other } = turnOf(t);
+  mover.say('clock', { n: 0, at: 'start' }); // early: no change
+  other.say('clock', { n: 0, at: 'press' }); // not their turn
+  mover.say('clock', { n: 5, at: 'press' }); // not this turn
+  t.time.pass(44000);
+  assert.equal(timedOut(t.host), false);
+  t.time.pass(1000);
+  assert.equal(timedOut(t.host), true);
+});
+
 test('the server thinks for computers, and sends their moves like anyone\'s', () => {
   const time = clock();
   const lobby = new Lobby({ ...time, random: () => 0.3 });

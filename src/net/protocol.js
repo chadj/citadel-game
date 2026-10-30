@@ -24,6 +24,9 @@
 //   start      {}                   the host starts the game
 //   move       { move }             a launch, a pass or a timeout
 //   hash       { n, hash }          the state's hash after move n
+//   clock      { n, at }            on this player's turn, after move n:
+//                                   'start' when their shot clock starts,
+//                                   'press' when Launch is pressed (D65)
 //   chat       { to, text }         to 'all', 'team' or a player
 //   quit       {}                   quit the game
 //   ping       {}

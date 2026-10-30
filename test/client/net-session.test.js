@@ -137,3 +137,19 @@ test('the turn\'s player\'s own machine says when its time is up', () => {
   assert.deepEqual(game.moves[0], { type: 'timeout', player: first });
   assert.equal(sessions[1 - first].moves.length, 1);
 });
+
+test('the turn\'s player\'s machine tells the server when its clock starts, and when Launch is pressed (D65)', () => {
+  const setup = makeSetup({ players: 2, clock: 15 });
+  const { nets, sessions, run } = online(setup);
+  const first = sessions[0].state.turn.player;
+  const told = () => nets[first].sent.filter((m) => m.t === 'clock');
+  run(1000);
+  assert.deepEqual(told(), []); // not before the clock starts
+  run(2000);
+  assert.deepEqual(told(), [{ t: 'clock', n: 0, at: 'start' }]);
+  sessions[first].pressLaunch(first);
+  run(1000);
+  assert.deepEqual(told().map((m) => m.at), ['start', 'press']);
+  // The other player's machine says nothing.
+  assert.equal(nets[1 - first].sent.some((m) => m.t === 'clock'), false);
+});

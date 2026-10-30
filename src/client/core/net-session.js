@@ -127,9 +127,24 @@ export class NetSession extends Session {
     if (this.sent) return; // a move is on its way
     if (this.game.state.turn.player === this.me) {
       super.advanceClock(ms);
+      // The server's backstop goes by this machine's clock (D65).
+      if (!this.clockTold && !this.sent && this.clock().running) {
+        this.clockTold = true;
+        this.tellClock('start');
+      }
       return;
     }
     if (!this.clockStopped) this.turnMs += ms;
+  }
+
+  pressLaunch(player) {
+    const mine = this.canAct(player);
+    super.pressLaunch(player);
+    if (mine) this.tellClock('press');
+  }
+
+  tellClock(at) {
+    if (this.game.state.turn.limit !== null) this.net.send('clock', { n: this.moves.length, at });
   }
 
   // Computers think on the server.
@@ -140,6 +155,7 @@ export class NetSession extends Session {
   startTurn() {
     super.startTurn();
     this.sent = false;
+    this.clockTold = false;
   }
 
   chat(to, text) {

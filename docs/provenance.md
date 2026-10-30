@@ -244,11 +244,13 @@ entries in `decisions.md` it relies on.
   different machines, is checked live by the server's hash compare);
   03 Players who disconnect; 10 Chat, Quit; 11 the aide's news of
   players not responding; 12 Saving a replay (the server keeps every
-  finished game's).
+  finished game's); 03 The shot clock (pressing Launch stops it, on the
+  server's backstop too).
 - **Decisions:** D52, D56 (numbered repeat names; a duplicated tab starts
   afresh; a tab in the background misses no moves), D62 (the server
   keeps every finished game's replay), D63 (games survive the server
-  restarting).
+  restarting), D65 (the server's backstop on the shot clock goes by the
+  player's own clock, and pressing Launch holds it).
 - **Known gaps** (to come back to):
   - **Rejoining after a disconnect** isn't offered (the spec makes
     rejoining optional).

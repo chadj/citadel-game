@@ -22,8 +22,12 @@ import { CLOCK_START_DELAY } from '../rules/constants.js';
 import { CHAT_MAX, receives } from '../client/core/chat.js';
 import { brainsFor } from '../client/core/computers.js';
 import { TICK_MS, ROUND_ANNOUNCE_MS, COMPUTER_MIN_MS, COMPUTER_LIMIT_MS } from '../client/core/session.js';
+import { METER_FILL_TICKS } from '../client/core/meter.js';
 
 const MAX_SETTLE_TICKS = 30 * 60 * 10;
+// The longest Launch can be held: the meter runs up and down, then fires.
+const METER_HOLD_MS = 2 * METER_FILL_TICKS * TICK_MS;
+const MAX_PRESSES = 10; // a turn's presses that each hold the backstop
 const THINK_SLICE_MS = 20;
 const ENDED_KEEP_MS = 60000; // a finished game stays a minute, for late hashes
 
@@ -118,6 +122,9 @@ export class NetGame {
       case 'hash':
         this.checkHash(seat, m.n, m.hash);
         break;
+      case 'clock':
+        this.clockFrom(seat, m);
+        break;
       case 'chat':
         this.chat(seat, m);
         break;
@@ -186,6 +193,7 @@ export class NetGame {
   // screen about `showMs` from now.
   nextTurn(showMs) {
     this.clearTimer(this.clockTimer);
+    this.backstop = null;
     this.thinking = null;
     const s = this.game.state;
     if (s.phase === 'over') {
@@ -202,11 +210,40 @@ export class NetGame {
     // backstop, in case it never does (spec 12: the shot clock must be
     // fair, so a slow connection gets the benefit).
     if (s.turn.limit !== null) {
-      const wait = showMs + CLOCK_START_DELAY + s.turn.limit + CLOCK_GRACE_MS;
-      this.clockTimer = this.setTimer(() => {
-        if (this.moves.length === n && s.turn.player === player) this.play({ type: 'timeout', player });
-      }, wait);
+      const at = this.now() + showMs + CLOCK_START_DELAY + s.turn.limit + CLOCK_GRACE_MS;
+      this.backstop = { player, n, limit: s.turn.limit, at, latest: at + DISCONNECT_MS, started: false, presses: 0 };
+      this.armBackstop();
     }
+  }
+
+  armBackstop() {
+    const b = this.backstop;
+    this.clearTimer(this.clockTimer);
+    this.clockTimer = this.setTimer(() => {
+      if (this.moves.length === b.n && this.game.state.turn.player === b.player) this.play({ type: 'timeout', player: b.player });
+    }, Math.max(0, b.at - this.now()));
+  }
+
+  // The turn's player's machine says when its clock started, and when
+  // Launch was pressed, which stops it (spec 03, The shot clock;
+  // decision D65). The backstop then goes by that machine's clock, not
+  // by when the turn should have shown there: a phone that fell behind
+  // (in the background, say) isn't cut short. It only ever moves later,
+  // and no more than a disconnection's wait.
+  clockFrom(seat, m) {
+    const b = this.backstop;
+    if (!b || seat.player !== b.player || m.n !== this.moves.length) return;
+    if (m.at === 'start' && !b.started) {
+      b.started = true;
+      b.at = Math.min(b.latest, Math.max(b.at, this.now() + b.limit + CLOCK_GRACE_MS));
+    } else if (m.at === 'press' && b.presses < MAX_PRESSES) {
+      // A press holds the clock for as long as the meter can run.
+      b.presses += 1;
+      b.at = Math.min(b.latest, b.at + METER_HOLD_MS);
+    } else {
+      return;
+    }
+    this.armBackstop();
   }
 
   // Only the server thinks for each computer (spec 12, Computers). It
