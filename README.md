@@ -8,6 +8,9 @@ across a map that wraps on all four edges. The aim is to find and
 destroy the other players' Citadels, which look exactly like ordinary
 Outposts.
 
+**Play it:** https://chadj.github.io/citadel-game/ (on a phone or
+tablet, "Add to Home Screen" plays it full screen).
+
 - Play on one screen (hot seat), against computer players, or online.
 - Seven computer personalities, from hardest to easiest.
 - Teams, fog of war, wind and a shot clock, chosen by the host.
