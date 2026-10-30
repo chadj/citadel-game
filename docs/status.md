@@ -9,7 +9,7 @@ browser game (hot seat, replays, options and key rebinding, the
 narrow-screen layout), computer players, sound and the aide, fog of
 war, and online play (lobby, setup, lockstep games, taking back a seat
 after a dropped connection). `docs/provenance.md` says what each part
-implements; `docs/decisions.md` (D1 to D65) records every choice;
+implements; `docs/decisions.md` (D1 to D66) records every choice;
 `docs/formats.md` describes replay files and map data.
 
 Most recent work:
@@ -45,6 +45,10 @@ Most recent work:
 - Online, pressing Launch near the end of a turn no longer times out:
   the server's backstop on the shot clock goes by the player's own
   clock (D65).
+- The page can be hosted apart from the game server, such as on GitHub
+  Pages (D66): `tools/build-site.js`, a workflow that publishes it, and
+  `ALLOWED_ORIGINS` on the server. The page downloads about 3 MB, from
+  about 10.
 - On iPhone, opened from the Home Screen, the game reaches the bottom of
   the screen: iOS 26 makes the page short by the status bar's height,
   and `src/client/main.js` makes up for it.

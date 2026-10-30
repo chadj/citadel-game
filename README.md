@@ -42,6 +42,23 @@ the game; opened from there it fills the screen. Android's Chrome does
 this only from https or `localhost`; from a plain http address it adds
 a shortcut that opens in the browser.
 
+### Hosting the page apart from the server
+
+The page can be a static site (GitHub Pages, say), with `npm start`
+running elsewhere only as its game server:
+
+```sh
+node tools/build-site.js --server wss://example.com/net
+```
+
+This builds the site in `site/`, with the minified Phaser, and points
+online play at that server (without `--server`, the page connects to its
+own host). On the server, set `ALLOWED_ORIGINS` to the page's site, such
+as `https://example.github.io`, so only its pages may connect. The
+workflow in `.github/workflows/pages.yml` builds and publishes the site
+to GitHub Pages on each push to `main`, with the server's address taken
+from the repository variable `GAME_SERVER`.
+
 ## Tests
 
 ```sh

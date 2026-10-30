@@ -1655,3 +1655,35 @@ on 2026-10-25. Exact numbers chosen during tuning go in
     others still show the clock from when the turn started on their
     screens.
 
+## D66. Hosting the page apart from the game server
+- **Date:** 2026-10-30
+- **Spec:** none. Hosting the user asked for; 12 (online play) and 00
+  are the nearest.
+- **Asked for:** the page hosted as a static site on GitHub Pages, and
+  the game server elsewhere, at its own https address; a smaller
+  download for the page.
+- **Choice:**
+  - **Where the server is:** the page connects to the address in its
+    `<meta name="lunar-citadel-server">`, or else to its own host as
+    before. `tools/build-site.js --server wss://…/net` builds the site
+    in `site/` with that address written in. A page and a WebSocket on
+    different sites is allowed by browsers; a page served over https
+    must use `wss://`.
+  - **Which pages may connect:** the server's `ALLOWED_ORIGINS` lists
+    the sites whose pages it accepts (each browser says which site's
+    page is connecting); others are refused. Unset, any may, as before.
+    A connection that names no site (not a browser) is accepted: the
+    list keeps other sites' pages off the server, it isn't security.
+  - **Smaller download:** the built site loads Phaser minified (1.4 MB
+    in place of 8.8 MB); it's about 3 MB in all. `tools/serve.js`
+    sends text compressed (gzip) to browsers that take it, keeping each
+    file's compressed copy until the file changes. Running locally, the
+    page still loads the unminified Phaser, for readable errors.
+  - **Publishing:** `.github/workflows/pages.yml` runs the tests, builds
+    the site and publishes it to GitHub Pages on each push to `main`,
+    the server's address coming from the repository variable
+    `GAME_SERVER`. Without it, the build stops rather than publish a
+    page that can't play online.
+  - The site has the game's code (not the server's), its assets, the
+    game's license and Phaser's.
+

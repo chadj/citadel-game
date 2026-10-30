@@ -74,8 +74,18 @@ export function answerAsks(current) {
   return () => ch.close();
 }
 
+// Where the game server is (decision D66): the page's
+// <meta name="lunar-citadel-server"> when the page is hosted apart from
+// the server (tools/build-site.js writes it), or else the page's own
+// host.
+export function serverUrl() {
+  const set = globalThis.document?.querySelector('meta[name="lunar-citadel-server"]')?.content?.trim();
+  if (set) return set;
+  return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${NET_PATH}`;
+}
+
 export class Net {
-  constructor(name, url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${NET_PATH}`) {
+  constructor(name, url = serverUrl()) {
     this.url = url;
     this.name = name;
     this.token = null;

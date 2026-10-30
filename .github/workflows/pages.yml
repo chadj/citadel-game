@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Chad Johnson
+
+# Publishes the game's page to GitHub Pages on each push to main
+# (decision D66). Online play connects to the game server named by the
+# repository variable GAME_SERVER, such as wss://example.com/net
+# (Settings → Secrets and variables → Actions → Variables). Pages must be
+# set to deploy from GitHub Actions (Settings → Pages → Source).
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Build the site
+        env:
+          GAME_SERVER: ${{ vars.GAME_SERVER }}
+        run: |
+          if [ -z "$GAME_SERVER" ]; then
+            echo "Set the repository variable GAME_SERVER to the game server's address, such as wss://example.com/net" >&2
+            exit 1
+          fi
+          node tools/build-site.js --server "$GAME_SERVER" --out site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

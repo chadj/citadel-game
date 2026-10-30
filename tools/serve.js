@@ -9,10 +9,18 @@
 // replays/ (set REPLAY_DIR for another folder; decision D62). Games under
 // way are written down in games/ (GAMES_DIR) as they're played, and
 // carry on when the server starts again (D63).
+//
+// The page can also be hosted elsewhere, with this only as its game
+// server (decision D66; tools/build-site.js). Then set ALLOWED_ORIGINS
+// to the sites whose pages may connect, separated by commas, such as
+// https://example.github.io (an address only: no path). Unset, any page
+// may.
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
+import { promisify } from 'node:util';
+import { gzip } from 'node:zlib';
 import { WebSocketServer } from 'ws';
 import { Lobby } from '../src/server/lobby.js';
 import { replayKeeper } from '../src/server/replay-files.js';
@@ -23,6 +31,20 @@ const ROOT = resolve(import.meta.dirname, '..');
 const PORT = Number(process.env.PORT ?? 8080);
 const REPLAY_DIR = resolve(process.env.REPLAY_DIR ?? join(ROOT, 'replays'));
 const GAMES_DIR = resolve(process.env.GAMES_DIR ?? join(ROOT, 'games'));
+const ORIGINS = (process.env.ALLOWED_ORIGINS ?? '').split(',').map((o) => o.trim().replace(/\/+$/, '')).filter(Boolean);
+// Text is sent compressed to browsers that take it: Phaser shrinks from
+// about 9 MB to 2.
+const COMPRESS = new Set(['.html', '.js', '.json', '.webmanifest', '.css', '.svg']);
+const squeeze = promisify(gzip);
+// Each file's compressed copy, kept until the file changes.
+const squeezed = new Map();
+async function compressed(file, body) {
+  const kept = squeezed.get(file);
+  if (kept && kept.raw.equals(body)) return kept.gz;
+  const gz = await squeeze(body);
+  squeezed.set(file, { raw: body, gz });
+  return gz;
+}
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -47,8 +69,13 @@ const server = createServer(async (req, res) => {
     return;
   }
   try {
-    const body = await readFile(file);
-    res.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-cache' });
+    let body = await readFile(file);
+    const headers = { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-cache', vary: 'accept-encoding' };
+    if (COMPRESS.has(extname(file)) && /\bgzip\b/.test(req.headers['accept-encoding'] ?? '')) {
+      body = await compressed(file, body);
+      headers['content-encoding'] = 'gzip';
+    }
+    res.writeHead(200, headers);
     res.end(body);
   } catch {
     res.writeHead(404).end('not found');
@@ -71,7 +98,10 @@ const lobby = new Lobby({
 const { resumed, ended } = lobby.restoreGames();
 for (const name of resumed) console.log(`game carried on: ${name}`);
 for (const { name, why } of ended) console.log(`game not carried on: ${name}: ${why}`);
-const sockets = new WebSocketServer({ server, path: NET_PATH, maxPayload: 64 * 1024 });
+// A browser says which site's page is connecting; with ALLOWED_ORIGINS
+// set, only those sites' pages may.
+const verifyClient = ORIGINS.length === 0 ? undefined : ({ origin }) => !origin || ORIGINS.includes(origin);
+const sockets = new WebSocketServer({ server, path: NET_PATH, maxPayload: 64 * 1024, verifyClient });
 sockets.on('connection', (ws) => {
   const conn = lobby.connect((text) => {
     if (ws.readyState === ws.OPEN) ws.send(text);
@@ -88,4 +118,5 @@ sockets.on('connection', (ws) => {
 
 server.listen(PORT, () => {
   console.log(`Lunar Citadel: http://localhost:${PORT}`);
+  if (ORIGINS.length > 0) console.log(`pages that may connect: ${ORIGINS.join(', ')}`);
 });

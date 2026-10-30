@@ -237,7 +237,8 @@ entries in `decisions.md` it relies on.
   for checking, `--restart` across a server restart);
   `src/server/replay-files.js` (keeping finished games' replays);
   `src/server/game-store.js` (games under way, written down to survive
-  a restart).
+  a restart); `tools/build-site.js` and `.github/workflows/pages.yml`
+  (the page as a static site, apart from the server).
 - **Spec:** 12 Ways to play, The lobby, Setting up a game, When the
   game starts, Every machine plays the same game, Dropping out,
   Rejoining (before a disconnect), Determinism checks 1, 3, 5 (2, on
@@ -250,7 +251,8 @@ entries in `decisions.md` it relies on.
   afresh; a tab in the background misses no moves), D62 (the server
   keeps every finished game's replay), D63 (games survive the server
   restarting), D65 (the server's backstop on the shot clock goes by the
-  player's own clock, and pressing Launch holds it).
+  player's own clock, and pressing Launch holds it), D66 (the page
+  hosted apart from the game server).
 - **Known gaps** (to come back to):
   - **Rejoining after a disconnect** isn't offered (the spec makes
     rejoining optional).
