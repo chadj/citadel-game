@@ -37,6 +37,9 @@ Most recent work:
   each player), and the save buttons go under the replay's name.
 - On a phone's Replays screen, each replay's buttons go under its name,
   and the text wraps to the screen.
+- Watching a replay, Pause and "Following" no longer cover whose turn
+  it is (on a phone they go on the second row) or the income; the
+  shot clock isn't shown, since a replay isn't timed.
 - In the setup, each computer's personality shows its level, as
   "Mason · Medium" (D64).
 - Online, pressing Launch near the end of a turn no longer times out:

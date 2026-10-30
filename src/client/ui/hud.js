@@ -179,8 +179,14 @@ export class Hud {
     this.messageText.setWordWrapWidth(Math.min(520, width - 24));
 
     if (this.watching) {
-      this.playBtn.setSize(70, 28).setPosition(width - 76, 6);
-      this.followBtn.setSize(150, 28).setPosition(width - 232, 6);
+      // A replay has no shot clock. On a phone, Pause and whom it follows
+      // go on the second row, beside the order of play; otherwise at the
+      // top right, the income to their left.
+      const rowY = narrow ? 34 : 6;
+      const followW = Math.min(170, width - 76 - 6 - (this.orderX + 4 * 26 + 8) - 6);
+      this.playBtn.setSize(70, 28).setPosition(width - 76, rowY);
+      this.followBtn.setSize(followW, 28).setPosition(width - 82 - followW, rowY);
+      if (!narrow) this.incomeText.setOrigin(1, 0).setPosition(width - 82 - followW - 12, 11);
       this.chatText.setPosition(10, height - 10);
       return;
     }
@@ -280,7 +286,9 @@ export class Hud {
     // The shot clock: how much of the turn's time has gone.
     const clock = session.clock();
     const box = this.clockBox;
-    if (clock.limit !== null && s.phase === 'turn') {
+    if (this.watching) {
+      this.clockText.setText('');
+    } else if (clock.limit !== null && s.phase === 'turn') {
       const share = Math.min(1, clock.gone / clock.limit);
       g.fillStyle(0x000000, 0.6);
       g.fillRect(box.x, box.y, box.w, box.h);
