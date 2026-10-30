@@ -50,16 +50,35 @@ export class ReplaysScene extends BaseScene {
   }
 
   openFile() {
+    // The chooser's input is on the page while it's open: on iPhone, one
+    // that isn't never hears which file was picked.
+    this.picker?.remove();
     const el = document.createElement('input');
+    this.picker = el;
     el.type = 'file';
     el.accept = '.json,application/json';
+    el.style.display = 'none';
+    document.body.append(el);
+    const done = () => {
+      el.remove();
+      if (this.picker === el) this.picker = null;
+    };
+    el.addEventListener('cancel', done);
     el.addEventListener('change', async () => {
       const file = el.files?.[0];
+      done();
       if (!file) return;
-      const result = replayFromText(await file.text());
+      let result;
+      try {
+        result = replayFromText(await file.text());
+      } catch {
+        result = { ok: false, reason: 'That file couldn\'t be read.' };
+      }
+      if (!this.scene.isActive()) return;
       if (!result.ok) this.status.setText(result.reason);
       else this.watch(result.replay);
     });
+    this.events.once('shutdown', done);
     el.click();
   }
 
@@ -80,26 +99,38 @@ export class ReplaysScene extends BaseScene {
     });
     this.prevPage.setVisible(pages > 1).setEnabled(this.page > 0);
     this.nextPage.setVisible(pages > 1).setEnabled(this.page < pages - 1);
+    this.layout();
   }
 
   layout() {
     const { width, height } = this.view;
+    const narrow = width < 720;
     const w = Math.min(640, width - 24);
     const x = (width - w) / 2;
     let y = 20;
     this.heading.setPosition(width / 2, y);
     y += 60;
-    this.empty.setPosition(x, y);
+    this.empty.setPosition(x, y).setWordWrapWidth(w);
     for (const row of this.rows) {
-      row.name.setPosition(x, y).setWordWrapWidth(w - 230);
-      row.watch.setSize(70, 32).setPosition(x + w - 220, y);
-      row.file.setSize(60, 32).setPosition(x + w - 144, y);
-      row.del.setSize(70, 32).setPosition(x + w - 78, y);
-      y += 48;
+      if (narrow) {
+        // On a phone the buttons go under the replay's name and date.
+        row.name.setPosition(x, y).setWordWrapWidth(w);
+        const by = y + Math.max(40, row.name.height + 6);
+        row.watch.setSize(80, 32).setPosition(x, by);
+        row.file.setSize(70, 32).setPosition(x + 86, by);
+        row.del.setSize(80, 32).setPosition(x + 162, by);
+        if (row.entry) y = by + 44;
+      } else {
+        row.name.setPosition(x, y).setWordWrapWidth(w - 230);
+        row.watch.setSize(70, 32).setPosition(x + w - 220, y);
+        row.file.setSize(60, 32).setPosition(x + w - 144, y);
+        row.del.setSize(70, 32).setPosition(x + w - 78, y);
+        y += 48;
+      }
     }
     this.prevPage.setSize(36, 30).setPosition(x, y);
     this.nextPage.setSize(36, 30).setPosition(x + 42, y);
-    this.status.setPosition(x, y + 40);
+    this.status.setPosition(x, y + 40).setWordWrapWidth(w);
     this.open.setSize(130, 42).setPosition(width - 146, height - 60);
     this.back.setSize(110, 42).setPosition(16, height - 60);
   }

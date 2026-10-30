@@ -35,6 +35,8 @@ Most recent work:
   hosting (now just under the list) fits the screen.
 - On a phone's game summary, the table turns on its side (a column for
   each player), and the save buttons go under the replay's name.
+- On a phone's Replays screen, each replay's buttons go under its name,
+  and the text wraps to the screen.
 - In the setup, each computer's personality shows its level, as
   "Mason · Medium" (D64).
 - Online, pressing Launch near the end of a turn no longer times out:
