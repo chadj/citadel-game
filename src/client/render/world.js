@@ -22,7 +22,7 @@ import {
 } from '../../rules/constants.js';
 import { UNIT_KINDS, isWorking, findUnit } from '../../rules/units.js';
 import { ITEMS, BUILDING } from '../../rules/items.js';
-import { canSee } from '../../rules/fog.js';
+import { canSee, fogLifted } from '../../rules/fog.js';
 import { isGone, conduitWarning } from '../../rules/conduits.js';
 import { sampleTerrain, tileIndex, tileCenter } from '../../rules/terrain/terrain.js';
 import { LIFT, screenCopies } from '../core/view.js';
@@ -191,9 +191,11 @@ export class WorldView {
     this.fogTick = this.game.state.tick;
     const fog = this.game.state.fog;
     if (!fog) return;
-    const counts = fog.counts[this.side(this.viewer)];
+    // For a side that's out of the game, the fog has lifted for good
+    // (spec 08, When the fog lifts): none is drawn.
+    if (!this.watching && fogLifted(this.game, this.viewer)) this.fogData.data.fill(0);
     // In a replay, the followed player's fog shows faintly (spec 12).
-    fogPixels(counts, fog.cells, this.fogData.data, this.watching ? 110 : 255);
+    else fogPixels(fog.counts[this.side(this.viewer)], fog.cells, this.fogData.data, this.watching ? 110 : 255);
     this.fogTex.getContext().putImageData(this.fogData, 0, 0);
     this.fogTex.refresh();
   }

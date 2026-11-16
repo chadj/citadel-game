@@ -55,6 +55,8 @@ Most recent work:
   game. Limits on connections (8 an address), messages (20 a second),
   games waiting and under way, and how often an address starts a game;
   `TRUSTED_PROXIES` for the player's address behind a reverse proxy.
+- A player knocked out of a game in fog sees the whole map, as spec 08
+  says: the rules lifted the fog, but the screen still drew it.
 - On iPhone, opened from the Home Screen, the game reaches the bottom of
   the screen: iOS 26 makes the page short by the status bar's height,
   and `src/client/main.js` makes up for it.
